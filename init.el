@@ -169,19 +169,24 @@
   (defun erl-eval-print (expr)
     (interactive "sErlang expression: ")
     (catch 'no-erl
-      (unless (and *erlang-binary* (executable-find *erlang-binary*))
-        (message "*erlang-binary* not set or incorrect - set it manually or add `erl` to $PATH")
-        (throw 'no-erl nil))
-      (let* ((printable-fun-str (concat "fun (F) when is_float(F) -> erlang:float_to_binary(F);"
-                                        "    (I) when is_integer(I) -> erlang:integer_to_binary(I);"
-                                        "    (X) -> X end"))
-             (expr-str (format "erlang:apply(%s, [%s])" printable-fun-str expr))
-             (eval-str (format "io:format(\"~s\", [%s])." expr-str))
-             (cmd-str (format "%s -noinput -eval '%s' -s erlang halt" *erlang-binary* eval-str))
-             (result (shell-command-to-string cmd-str)))
+      (unless (and (stringp *erlang-binary*)
+                   (executable-find *erlang-binary*))
         (when (called-interactively-p 'any)
-	  (message result))
-        result)))
+          (message (format "bad *erlang-binary* => %s" *erlang-binary*)))
+        (throw 'no-erl nil))
+      (with-temp-buffer
+        (let* ((printable-filter-fn (concat "fun (F) when is_float(F) -> erlang:float_to_binary(F);"
+                                            "    (I) when is_integer(I) -> erlang:integer_to_binary(I);"
+                                            "    (X) -> X end"))
+               (apply-printable-expr (format "erlang:apply(%s, [%s])" printable-filter-fn expr))
+               (eval-str (format "io:format(\"~s\", [%s])" apply-printable-expr))
+               (exit-code (call-process *erlang-binary* nil (current-buffer) nil
+                                        "-noinput" "-eval" eval-str "-s" "erlang" "halt" "-env" "ERL_CRASH_DUMP" "/dev/null"))
+               (output (buffer-string)))
+          (when (called-interactively-p 'any)
+            (message output))
+          (when (zerop exit-code)
+            output)))))
 
   (use-package erlang
     :custom (erlang-root-dir (erl-eval-print "code:root_dir()"))
