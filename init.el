@@ -215,7 +215,9 @@ Prepends by default, append by setting APPEND to non-nil."
 
 (use-package magit
   :bind (("C-x g" . magit-status)
-         ("C-x C-g" . magit-status)))
+         ("C-x C-g" . magit-status))
+  :custom
+  (magit-git-executable (executable-find "git")))
 
 (use-package yaml-mode)
 
