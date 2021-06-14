@@ -199,6 +199,21 @@
   (defvar *github-urls* '((:https "https://github.com/")
                           (:ssl "git@github.com:")))
 
+  (defvar *git-config-alist* '(("core.autocrlf" . "input")
+                               ("rebase.stat" . "true")
+                               ("color.ui" . "auto")
+                               ("core.pager" . "\"less -FRSX\"")
+                               ("alias.di" . "diff")
+                               ("alias.ci" . "commit")
+                               ("alias.co" . "checkout")
+                               ("alias.ann" . "blame")
+                               ("alias.st" . "status")))
+  (cl-defun config-my-git (&optional (config-alist *git-config-alist*))
+    (interactive)
+    (when (executable-find "git")
+      (pcase-dolist (`(,k . ,v) config-alist)
+        (shell-command (format "git config --global %s %s" k v)))))
+
   (defun local-github-subdir (dir)
     (expand-file-name dir *local-github-dir*))
   
