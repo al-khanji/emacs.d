@@ -192,10 +192,9 @@
     :custom (erlang-root-dir (erl-eval-print "code:root_dir()"))
     :config
     (require 'erlang-start)
-    (when (package-installed-p 'woman)
-      (pcase (erl-eval-print "code:root_dir()")
-        ('nil)
-        (lib-dir (add-to-list 'woman-manpath (expand-file-name "man" lib-dir))))))
+    (pcase (erl-eval-print "code:root_dir()")
+      ('nil)
+      (lib-dir (add-to-list 'woman-manpath (expand-file-name "man" lib-dir)))))
 
   ;; (use-package erlang
   ;;   :ensure nil
