@@ -283,7 +283,7 @@ Prepends by default, append by setting APPEND to non-nil."
   :pin manual
   :preface
   (pcase-dolist (`(,req-name ,req-version) (package-find-reqs 'lsp-mode))
-    (package-install req-name 'dont-select))
+    (unless (package-installed-p req-name) (package-install req-name 'dont-select)))
   (mapcar (lambda (project) (add-to-list 'load-path (local-github-subdir project)))
           '("al-khanji/lsp-mode" "al-khanji/lsp-mode/clients")))
 
