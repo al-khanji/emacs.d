@@ -37,7 +37,7 @@
 (global-display-line-numbers-mode t)
 (column-number-mode)
 
-;; disable toolbar
+;; UI Settings
 (when (window-system)
   (tool-bar-mode -1)
   (toggle-scroll-bar -1)
@@ -53,7 +53,7 @@
   (modify-frame-parameters (selected-frame) default-frame-alist))
 
 ;; basic package setup
-(progn 
+(progn
   (require 'package)
   (dolist (e '(("gnu"   . "https://elpa.gnu.org/packages/")
                ("melpa" . "https://melpa.org/packages/")
@@ -71,6 +71,88 @@
 
   (setq use-package-always-ensure t))
 
+;; Custom github bits and pieces
+(progn
+  (defvar *local-github-dir* "~/github")
+  (defvar *github-urls* '((:https "https://github.com/")
+                          (:ssl "git@github.com:")))
+  (defvar *git-config-alist* '(("core.autocrlf" . "input")
+                               ("rebase.stat" . "true")
+                               ("color.ui" . "auto")
+                               ("core.pager" . "\"less -FRSX\"")
+                               ("alias.di" . "diff")
+                               ("alias.ci" . "commit")
+                               ("alias.co" . "checkout")
+                               ("alias.ann" . "blame")
+                               ("alias.st" . "status")))
+
+  (cl-defun config-my-git (&optional (config-alist *git-config-alist*))
+    (interactive)
+    (when (executable-find "git")
+      (pcase-dolist (`(,k . ,v) config-alist)
+        (shell-command (format "git config --global %s %s" k v)))))
+
+  (defun local-github-subdir (dir)
+    (expand-file-name dir *local-github-dir*))
+
+  (defun github-clone (repo &optional arg)
+    (interactive "sRepository: \nP")
+    (pcase-let* ((scheme (if arg :ssl :https))
+                 (`(,scheme ,url) (assoc scheme *github-urls*))
+                 (`(,owner ,project) (split-string repo "/"))
+                 (src (concat url repo ".git"))
+                 (dst (local-github-subdir owner)))
+      (message "github-clone %s -> %s" src dst)
+      (magit-clone-regular src dst nil))))
+
+;; Erlang stuff
+(progn
+  (defvar *erlang-binary* (executable-find "erl"))
+
+  (defun erl-eval-print (expr)
+    (interactive "sErlang expression: ")
+    (catch 'no-erl
+      (unless (and (stringp *erlang-binary*)
+                   (executable-find *erlang-binary*))
+        (when (called-interactively-p 'any)
+          (message (format "bad *erlang-binary* => %s" *erlang-binary*)))
+        (throw 'no-erl nil))
+      (with-temp-buffer
+        (let* ((printable-filter-fn (concat "fun (F) when is_float(F) -> erlang:float_to_binary(F);"
+                                            "    (I) when is_integer(I) -> erlang:integer_to_binary(I);"
+                                            "    (X) -> X end"))
+               (apply-printable-expr (format "erlang:apply(%s, [%s])" printable-filter-fn expr))
+               (eval-str (format "io:format(\"~s\", [%s])" apply-printable-expr))
+               (exit-code (call-process *erlang-binary* nil (current-buffer) nil
+                                        "-noinput" "-eval" eval-str "-s" "erlang" "halt" "-env" "ERL_CRASH_DUMP" "/dev/null"))
+               (output (buffer-string)))
+          (when (called-interactively-p 'any)
+            (message output))
+          (when (zerop exit-code)
+            output))))))
+
+;; Some utility functions
+(progn
+  (cl-defun add-to-path (p &optional (append nil))
+    "Add P to path variables: exec-path eshell-path-env $PATH.
+
+Prepends by default, append by setting APPEND to non-nil."
+    (add-to-list 'exec-path p append)
+    (require 'eshell)
+    (let* ((new-paths (list (list p) (eshell-get-path)))
+           (new-paths (if append (reverse new-paths) new-paths))
+           (new-paths (apply #'append new-paths))
+           (new-paths (string-join new-paths path-separator)))
+      (setq-default eshell-path-env new-paths)
+      (setenv "PATH" new-paths)))
+
+  (defun package-find-reqs (pkg)
+    "Looks up the requirements for PKG from PACKAGE-ARCHIVE-CONTENTS.
+
+ Returns a list of tuples (NAME VERSION) if found, otherwise nil. "
+    (pcase (assoc pkg package-archive-contents)
+      (`(,name ,desc) (package-desc-reqs desc)))))
+
 (use-package doom-themes
   :config
   (load-theme 'doom-spacegrey t))
@@ -78,6 +160,7 @@
 ;; macOS specials
 (progn
   (defvar *think-different* (memq window-system '(mac ns x)))
+  (defvar *homebrew-coreutils-gnubin* "/usr/local/opt/coreutils/libexec/gnubin")
 
   (when *think-different*
     ;; Make emojis work
@@ -96,13 +179,16 @@
   (use-package exec-path-from-shell
     :if *think-different*
     :config  
-    (exec-path-from-shell-initialize)))
+    (exec-path-from-shell-initialize)
+    (add-to-path *homebrew-coreutils-gnubin*)))
 
 (use-package ace-window
   :bind ("M-o" . ace-window))
 
 (use-package diminish
-  :config (diminish 'eldoc-mode))
+  :config
+  (diminish 'eldoc-mode)
+  (diminish 'auto-revert-mode))
 
 (use-package which-key
   :diminish which-key-mode
@@ -162,87 +248,27 @@
 
 (use-package woman)
 
-;; Erlang stuff
-(progn
-  (defvar *erlang-binary* (executable-find "erl"))
+(use-package erlang
+  :custom (erlang-root-dir (erl-eval-print "code:root_dir()"))
+  :config
+  (require 'erlang-start)
+  (pcase (erl-eval-print "code:root_dir()")
+    ('nil)
+    (lib-dir (add-to-list 'woman-manpath (expand-file-name "man" lib-dir)))))
 
-  (defun erl-eval-print (expr)
-    (interactive "sErlang expression: ")
-    (catch 'no-erl
-      (unless (and (stringp *erlang-binary*)
-                   (executable-find *erlang-binary*))
-        (when (called-interactively-p 'any)
-          (message (format "bad *erlang-binary* => %s" *erlang-binary*)))
-        (throw 'no-erl nil))
-      (with-temp-buffer
-        (let* ((printable-filter-fn (concat "fun (F) when is_float(F) -> erlang:float_to_binary(F);"
-                                            "    (I) when is_integer(I) -> erlang:integer_to_binary(I);"
-                                            "    (X) -> X end"))
-               (apply-printable-expr (format "erlang:apply(%s, [%s])" printable-filter-fn expr))
-               (eval-str (format "io:format(\"~s\", [%s])" apply-printable-expr))
-               (exit-code (call-process *erlang-binary* nil (current-buffer) nil
-                                        "-noinput" "-eval" eval-str "-s" "erlang" "halt" "-env" "ERL_CRASH_DUMP" "/dev/null"))
-               (output (buffer-string)))
-          (when (called-interactively-p 'any)
-            (message output))
-          (when (zerop exit-code)
-            output)))))
+(use-package editorconfig
+  :diminish editorconfig-mode
+  :config
+  (editorconfig-mode 1))
 
-  (use-package erlang
-    :custom (erlang-root-dir (erl-eval-print "code:root_dir()"))
-    :config
-    (require 'erlang-start)
-    (pcase (erl-eval-print "code:root_dir()")
-      ('nil)
-      (lib-dir (add-to-list 'woman-manpath (expand-file-name "man" lib-dir)))))
+;; (use-package erlang
+;;   :ensure nil
+;;   :if (executable-find "erl")
+;;   :load-path (lambda () (concat (erl-eval-print "code:lib_dir(tools)") "/emacs"))
+;;   :custom (erlang-root-dir (erl-eval-print "code:root_dir()"))
+;;   :init
+;;   (add-to-list 'exec-path (concat (erl-eval-print "code:root_dir()") "/bin")))
 
-  ;; (use-package erlang
-  ;;   :ensure nil
-  ;;   :if (executable-find "erl")
-  ;;   :load-path (lambda () (concat (erl-eval-print "code:lib_dir(tools)") "/emacs"))
-  ;;   :custom (erlang-root-dir (erl-eval-print "code:root_dir()"))
-  ;;   :init
-  ;;   (add-to-list 'exec-path (concat (erl-eval-print "code:root_dir()") "/bin")))
-  )
-
-;; Custom github bits and pieces
-(progn
-  (defvar *local-github-dir* "~/github")
-  (defvar *github-urls* '((:https "https://github.com/")
-                          (:ssl "git@github.com:")))
-
-  (defvar *git-config-alist* '(("core.autocrlf" . "input")
-                               ("rebase.stat" . "true")
-                               ("color.ui" . "auto")
-                               ("core.pager" . "\"less -FRSX\"")
-                               ("alias.di" . "diff")
-                               ("alias.ci" . "commit")
-                               ("alias.co" . "checkout")
-                               ("alias.ann" . "blame")
-                               ("alias.st" . "status")))
-  (cl-defun config-my-git (&optional (config-alist *git-config-alist*))
-    (interactive)
-    (when (executable-find "git")
-      (pcase-dolist (`(,k . ,v) config-alist)
-        (shell-command (format "git config --global %s %s" k v)))))
-
-  (defun local-github-subdir (dir)
-    (expand-file-name dir *local-github-dir*))
-  
-  (defun github-clone (repo &optional arg)
-    (interactive "sRepository: \nP")
-    (pcase-let* ((scheme (if arg :ssl :https))
-                 (`(,scheme ,url) (assoc scheme *github-urls*))
-                 (`(,owner ,project) (split-string repo "/"))
-                 (src (concat url repo ".git"))
-                 (dst (local-github-subdir owner)))
-      (message "github-clone %s -> %s" src dst)
-      (magit-clone-regular src dst nil))))
-
-(defun add-to-path (p)
-  (add-to-list 'exec-path p)
-  (setq-default eshell-path-env (concat p ":" eshell-path-env))
-  (setenv "PATH" (concat p ":" (getenv "PATH"))))
 
 (dolist (p '("al-khanji/erlang_ls/_build/default/bin"
              "al-khanji/erlang_ls/_build/dap/bin"))
@@ -252,23 +278,10 @@
   :ensure nil
   :pin manual
   :preface
-  (dolist (p '(dash
-               f
-               ht
-               lv
-               markdown-mode
-               spinner
-               flycheck
-               ert-runner
-               espuds
-               ecukes
-               undercover
-               deferred
-               el-mock))
-    (package-install p 'dont-select))
-  (dolist (d '("al-khanji/lsp-mode"
-               "al-khanji/lsp-mode/clients"))
-    (add-to-list 'load-path (local-github-subdir d))))
+  (pcase-dolist (`(,req-name ,req-version) (package-find-reqs 'lsp-mode))
+    (package-install req-name 'dont-select))
+  (mapcar (lambda (project) (add-to-list 'load-path (local-github-subdir project)))
+          '("al-khanji/lsp-mode" "al-khanji/lsp-mode/clients")))
 
 (provide 'init)
 
