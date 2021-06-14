@@ -160,6 +160,8 @@
   :config
   (show-paren-mode 1))
 
+(use-package woman)
+
 ;; Erlang stuff
 (progn
   (defvar *erlang-binary* (executable-find "erl"))
@@ -182,7 +184,13 @@
         result)))
 
   (use-package erlang
-    :custom (erlang-root-dir (erl-eval-print "code:root_dir()")))
+    :custom (erlang-root-dir (erl-eval-print "code:root_dir()"))
+    :config
+    (require 'erlang-start)
+    (when (package-installed-p 'woman)
+      (pcase (erl-eval-print "code:root_dir()")
+        ('nil)
+        (lib-dir (add-to-list 'woman-manpath (expand-file-name "man" lib-dir))))))
 
   ;; (use-package erlang
   ;;   :ensure nil
