@@ -213,7 +213,9 @@ Prepends by default, append by setting APPEND to non-nil."
   :config
   (add-to-list 'slime-contribs 'slime-company))
 
-(use-package magit)
+(use-package magit
+  :bind (("C-x g" . magit-status)
+         ("C-x C-g" . magit-status)))
 
 (use-package yaml-mode)
 
