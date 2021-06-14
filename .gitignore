@@ -2,3 +2,4 @@ custom-file.el
 packages
 transient
 auto-save-list/
+eshell
