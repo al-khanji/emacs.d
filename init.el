@@ -202,6 +202,29 @@ Prepends by default, append by setting APPEND to non-nil."
     (exec-path-from-shell-initialize)
     (add-to-path *homebrew-coreutils-gnubin*)))
 
+(use-package ivy
+  :bind ("C-s" . swiper)
+  :config
+  (ivy-mode +1)
+  (setq ivy-use-virtual-buffers t
+        ivy-count-format "(%d/%d) "))
+
+(use-package ivy-rich
+  :after ivy
+  :config
+  (ivy-rich-mode +1))
+
+(use-package counsel
+  :config
+  (counsel-mode +1))
+
+(use-package projectile
+  :bind (:map projectile-mode-map
+              ("s-p" . projectile-command-map)
+              ("C-c p" . projectile-command-map))
+  :config
+  (projectile-mode +1))
+
 (use-package ace-window
   :bind ("M-o" . ace-window))
 
