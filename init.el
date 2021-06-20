@@ -303,11 +303,6 @@ Prepends by default, append by setting APPEND to non-nil."
     ('nil)
     (lib-dir (add-to-list 'woman-manpath (expand-file-name "man" lib-dir)))))
 
-(use-package editorconfig
-  :diminish editorconfig-mode
-  :config
-  (editorconfig-mode 1))
-
 ;; (use-package erlang
 ;;   :ensure nil
 ;;   :if (executable-find "erl")
@@ -316,10 +311,16 @@ Prepends by default, append by setting APPEND to non-nil."
 ;;   :init
 ;;   (add-to-list 'exec-path (concat (erl-eval-print "code:root_dir()") "/bin")))
 
+(use-package editorconfig
+  :diminish editorconfig-mode
+  :config
+  (editorconfig-mode 1))
 
 (dolist (p '("al-khanji/erlang_ls/_build/default/bin"
              "al-khanji/erlang_ls/_build/dap/bin"))
   (add-to-path (local-github-subdir p)))
+
+(use-package lsp-ui)
 
 (use-package lsp-mode
   :ensure nil
