@@ -35,8 +35,18 @@
   (setenv "DISPLAY" ":0"))
 
 (delete-selection-mode t)
-(global-display-line-numbers-mode t)
 (column-number-mode)
+
+;; Line numbers everywhere, except ...
+(global-display-line-numbers-mode t)
+;; ... for some modes
+(let ((hook (lambda () display-line-numbers-mode 0)))
+  (dolist (mode-hook '(org-mode-hook
+                       term-mode-hook
+                       shell-mode-hook
+                       treemacs-mode-hook
+                       eshell-mode-hook))
+    (add-hook mode-hook hook)))
 
 ;; UI Settings
 (when (window-system)
