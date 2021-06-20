@@ -210,7 +210,7 @@ Prepends by default, append by setting APPEND to non-nil."
         ivy-count-format "(%d/%d) "))
 
 (use-package ivy-rich
-  :after ivy
+  :after (counsel ivy)
   :config
   (ivy-rich-mode +1))
 
