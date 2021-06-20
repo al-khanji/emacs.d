@@ -48,10 +48,13 @@
                        eshell-mode-hook))
     (add-hook mode-hook hook)))
 
+(tool-bar-mode -1)
+(scroll-bar-mode -1)
+(set-fringe-mode 10)
+(menu-bar-mode -1)
+
 ;; UI Settings
 (when (window-system)
-  (tool-bar-mode -1)
-  (toggle-scroll-bar -1)
   (dolist (e '((width . 0.7)
                (height . 0.7)
                (left . 0.5)
