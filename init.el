@@ -164,7 +164,15 @@ Prepends by default, append by setting APPEND to non-nil."
 
  Returns a list of tuples (NAME VERSION) if found, otherwise nil. "
     (pcase (assoc pkg package-archive-contents)
-      (`(,name ,desc) (package-desc-reqs desc)))))
+      (`(,name ,desc) (package-desc-reqs desc))))
+
+  (cl-defun fill-line (char &optional (width fill-column))
+    (interactive "cFill character: \nP")
+    (message "filling %c to column %d" char width)
+    (save-excursion
+      (end-of-line)
+      (while (< (current-column) width)
+        (insert-char char)))))
 
 (use-package doom-themes
   :config
