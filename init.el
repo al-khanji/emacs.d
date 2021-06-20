@@ -149,6 +149,7 @@
     "Add P to path variables: exec-path eshell-path-env $PATH.
 
 Prepends by default, append by setting APPEND to non-nil."
+    (interactive "GDirectory: \nP")
     (add-to-list 'exec-path p append)
     (require 'eshell)
     (let* ((new-paths (list (list p) (eshell-get-path)))
