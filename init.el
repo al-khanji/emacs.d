@@ -55,15 +55,15 @@
 
 ;; UI Settings
 (when (window-system)
-  (dolist (e '((width . 0.7)
-               (height . 0.7)
-               (left . 0.5)
-               (top . 0.5)
-               (vertical-scroll-bars . nil)
-               (horizontal-scroll-bars . nil)
-               (ns-transparent-titlebar . t)
-               (ns-use-proxy-icon . nil)))
-    (add-to-list 'default-frame-alist e))
+  (setq default-frame-alist (append '((width . 0.7)
+                                      (height . 0.7)
+                                      (left . 0.5)
+                                      (top . 0.5)
+                                      (vertical-scroll-bars . nil)
+                                      (horizontal-scroll-bars . nil)
+                                      (ns-transparent-titlebar . t)
+                                      (ns-use-proxy-icon . nil))
+                                    default-frame-alist))
   (modify-frame-parameters (selected-frame) default-frame-alist))
 
 ;; basic package setup
