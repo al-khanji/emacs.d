@@ -5,7 +5,8 @@
       sentence-end-double-space nil
       ring-bell-function 'ignore
       use-dialog-box nil
-      compilation-scroll-output t)
+      compilation-scroll-output t
+      frame-title-format `((buffer-file-name "%f" "%b")))
 
 ;; emacs *insists* on this being on its own line with hard-coded user name
 (setq inhibit-startup-echo-area-message "louai")
