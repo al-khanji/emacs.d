@@ -1,6 +1,3 @@
-(setq custom-file "~/.emacs.d/custom-file.el")
-(load custom-file 'noerror)
-
 (setq inhibit-startup-screen t
       sentence-end-double-space nil
       ring-bell-function 'ignore
@@ -24,11 +21,6 @@
 (prefer-coding-system 'utf-8)
 (setq locale-coding-system 'utf-8
       default-process-coding-system '(utf-8-unix . utf-8-unix))
-
-;; Stop with all the littering
-(setq make-backup-files nil
-      auto-save-default nil
-      create-lockfiles nil)
 
 ;; Not set by default on macOS
 (unless (getenv "DISPLAY")
@@ -173,6 +165,11 @@ Prepends by default, append by setting APPEND to non-nil."
       (end-of-line)
       (while (< (current-column) width)
         (insert-char char)))))
+
+(use-package no-littering
+  :config
+  (setq auto-save-file-name-transforms `((".*" ,(no-littering-expand-var-file-name "auto-save/") t))
+        custom-file (no-littering-expand-etc-file-name "custom.el")))
 
 (use-package doom-themes
   :config
