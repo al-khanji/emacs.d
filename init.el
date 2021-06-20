@@ -193,8 +193,7 @@ Prepends by default, append by setting APPEND to non-nil."
   (use-package ns-auto-titlebar
     :if *think-different*
     :config
-    (ns-auto-titlebar-mode)
-    (setq ns-use-proxy-icon nil))
+    (ns-auto-titlebar-mode))
 
   ;; Get exec path from shell on mac, by default some dirs are missing
   (use-package exec-path-from-shell
