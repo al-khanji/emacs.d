@@ -85,7 +85,7 @@
 
 ;; Custom github bits and pieces
 (progn
-  (defvar *local-github-dir* "~/github")
+  (defvar *local-github-dir* (expand-file-name "~/github"))
   (defvar *github-urls* '((:https "https://github.com/")
                           (:ssl "git@github.com:")))
   (defvar *git-config-alist* '(("core.autocrlf" . "input")
