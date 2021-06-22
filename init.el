@@ -32,17 +32,15 @@
 ;; Line numbers everywhere, except ...
 (global-display-line-numbers-mode t)
 ;; ... for some modes
-(let ((hook (lambda () display-line-numbers-mode 0)))
-  (dolist (mode-hook '(org-mode-hook
-                       term-mode-hook
-                       shell-mode-hook
-                       treemacs-mode-hook
-                       eshell-mode-hook))
-    (add-hook mode-hook hook)))
+(dolist (mode '(org-mode-hook
+                term-mode-hook
+                shell-mode-hook
+                treemacs-mode-hook
+                eshell-mode-hook))
+  (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
 (tool-bar-mode -1)
 (scroll-bar-mode -1)
-(set-fringe-mode 10)
 (menu-bar-mode -1)
 
 ;; UI Settings
@@ -53,8 +51,7 @@
                                       (top . 0.5)
                                       (vertical-scroll-bars . nil)
                                       (horizontal-scroll-bars . nil)
-                                      (ns-transparent-titlebar . t)
-                                      (ns-use-proxy-icon . nil))
+                                      (ns-transparent-titlebar . t))
                                     default-frame-alist))
   (modify-frame-parameters (selected-frame) default-frame-alist))
 
@@ -190,7 +187,8 @@ Prepends by default, append by setting APPEND to non-nil."
   (use-package ns-auto-titlebar
     :if *think-different*
     :config
-    (ns-auto-titlebar-mode))
+    (ns-auto-titlebar-mode)
+    (setq ns-use-proxy-icon nil))
 
   ;; Get exec path from shell on mac, by default some dirs are missing
   (use-package exec-path-from-shell
@@ -209,7 +207,8 @@ Prepends by default, append by setting APPEND to non-nil."
 (use-package ivy-rich
   :after (counsel ivy)
   :config
-  (ivy-rich-mode +1))
+  (ivy-rich-mode +1)
+  (setcdr (assq t ivy-format-functions-alist) #'ivy-format-function-line))
 
 (use-package counsel
   :config
