@@ -174,7 +174,7 @@ Prepends by default, append by setting APPEND to non-nil."
 
 ;; macOS specials
 (progn
-  (defvar *think-different* (memq window-system '(mac ns x)))
+  (defvar *think-different* (eq system-type 'darwin))
   (defvar *homebrew-coreutils-gnubin* "/usr/local/opt/coreutils/libexec/gnubin")
 
   (when *think-different*
