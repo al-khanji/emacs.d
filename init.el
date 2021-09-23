@@ -181,6 +181,10 @@ Prepends by default, append by setting APPEND to non-nil."
   :config
   (load-theme 'doom-spacegrey t))
 
+(use-package beacon
+  :config
+  (beacon-mode 1))
+
 ;; macOS specials
 (progn
   (defvar *think-different* (eq system-type 'darwin))
