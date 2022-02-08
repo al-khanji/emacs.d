@@ -1,59 +1,81 @@
+;;; init.el -*- lexical-binding: t; -*-
+
+(require 'cl-lib)
+(require 'eshell)
+
+;; Contrary to what many Emacs users have in their configs, you don't need
+;; more than this to make UTF-8 the default coding system:
+(set-language-environment "UTF-8")
+
+;; set-language-enviornment sets default-input-method, which is unwanted
+(setq default-input-method nil)
+
 (setq inhibit-startup-screen t
       sentence-end-double-space nil
       ring-bell-function 'ignore
+      visible-bell t
       use-dialog-box nil
+      create-lockfiles nil
       compilation-scroll-output t
-      frame-title-format `((buffer-file-name "%f" "%b")))
-
-;; emacs *insists* on this being on its own line with hard-coded user name
-(setq inhibit-startup-echo-area-message "louai")
+      frame-title-format `((buffer-file-name "%f" "%b")
+                           " [" (:eval (projectile-project-name)) "]"))
 
 ;; Never mix tabs and spaces. Never use tabs, period.
 ;; We need the setq-default here because this becomes
 ;; a buffer-local variable when set.
 (setq-default indent-tabs-mode nil)
 
-;; Use utf-8 everywhere
-(set-charset-priority 'unicode)
-(set-terminal-coding-system 'utf-8)
-(set-keyboard-coding-system 'utf-8)
-(set-selection-coding-system 'utf-8)
-(prefer-coding-system 'utf-8)
-(setq locale-coding-system 'utf-8
-      default-process-coding-system '(utf-8-unix . utf-8-unix))
-
 ;; Not set by default on macOS
 (unless (getenv "DISPLAY")
   (setenv "DISPLAY" ":0"))
 
-(delete-selection-mode t)
+;(delete-selection-mode t)
 (column-number-mode)
 
 ;; Line numbers everywhere, except ...
 (global-display-line-numbers-mode t)
 ;; ... for some modes
 (dolist (mode '(org-mode-hook
-                term-mode-hook
-                shell-mode-hook
                 treemacs-mode-hook
-                eshell-mode-hook))
+                comint-mode-hook))
   (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
 (tool-bar-mode -1)
 (scroll-bar-mode -1)
-(menu-bar-mode -1)
 
-;; UI Settings
-(when (window-system)
-  (setq default-frame-alist (append '((width . 0.7)
-                                      (height . 0.7)
-                                      (left . 0.5)
-                                      (top . 0.5)
-                                      (vertical-scroll-bars . nil)
-                                      (horizontal-scroll-bars . nil)
-                                      (ns-transparent-titlebar . t))
-                                    default-frame-alist))
-  (modify-frame-parameters (selected-frame) default-frame-alist))
+;; Some utility functions
+(progn
+  (cl-defun add-to-path (p &optional (append nil))
+    "Add P to path variables: exec-path eshell-path-env $PATH.
+
+Prepends by default, append by setting APPEND to non-nil."
+    (interactive "GDirectory: \nP")
+
+    (add-to-list 'exec-path p append)
+    (let ((new-paths (string-join (append (unless append
+                                            (list p))
+                                          (eshell-get-path)
+                                          (when append
+                                            (list p)))
+                                  path-separator)))
+      (setq-default eshell-path-env new-paths)
+      (setenv "PATH" new-paths)))
+
+  (defun package-find-reqs (pkg)
+    "Looks up the requirements for PKG from PACKAGE-ARCHIVE-CONTENTS.
+
+ Returns a list of tuples (NAME VERSION) if found, otherwise nil. "
+    (pcase (assoc pkg package-archive-contents)
+      (`(,name ,desc) (package-desc-reqs desc))))
+
+  (cl-defun fill-line (char &optional (width fill-column))
+    (interactive "cFill character: \nP")
+    (message "filling %c to column %d" char width)
+    (save-excursion
+      (end-of-line)
+      (while (< (current-column) width)
+        (insert-char char)))))
+
 
 ;; basic package setup
 (progn
@@ -61,8 +83,9 @@
   (setq package-archives '(("melpa" . "https://melpa.org/packages/")
                            ("org" . "https://orgmode.org/elpa/")
                            ("elpa" . "https://elpa.gnu.org/packages/")))
-  (package-initialize)
 
+  (package-initialize)
+  
   (unless package-archive-contents
     (package-refresh-contents))
 
@@ -72,6 +95,10 @@
   (require 'use-package)
   (setq use-package-always-ensure t))
 
+(use-package doom-themes
+  :config
+  (load-theme 'doom-spacegrey t))
+
 (use-package auto-package-update
   :custom
   (auto-package-update-interval 7)
@@ -80,6 +107,31 @@
   :config
   (auto-package-update-maybe)
   (auto-package-update-at-time "09:00"))
+
+;; macOS specials
+(progn
+  (defvar *think-different* (eq system-type 'darwin))
+  (defvar *homebrew-coreutils-gnubin* "/usr/local/opt/coreutils/libexec/gnubin")
+
+  (when *think-different*
+    ;; Make emojis work
+    (set-fontset-font "fontset-default" 'unicode "Apple Color Emoji" nil 'prepend)
+    ;; Make ⌘-w close the current
+    (bind-key "s-w" #'kill-this-buffer)
+    (unbind-key "C-z"))
+
+  (use-package ns-auto-titlebar
+    :if *think-different*
+    :config
+    (ns-auto-titlebar-mode)
+    (setq ns-use-proxy-icon nil))
+
+  ;; Get exec path from shell on mac, by default some dirs are missing
+  (use-package exec-path-from-shell
+    :if *think-different*
+    :config  
+    (exec-path-from-shell-initialize)
+    (add-to-path *homebrew-coreutils-gnubin*)))
 
 ;; Custom github bits and pieces
 (progn
@@ -141,74 +193,19 @@
           (when (zerop exit-code)
             output))))))
 
-;; Some utility functions
-(progn
-  (cl-defun add-to-path (p &optional (append nil))
-    "Add P to path variables: exec-path eshell-path-env $PATH.
-
-Prepends by default, append by setting APPEND to non-nil."
-    (interactive "GDirectory: \nP")
-    (add-to-list 'exec-path p append)
-    (require 'eshell)
-    (let* ((new-paths (list (list p) (eshell-get-path)))
-           (new-paths (if append (reverse new-paths) new-paths))
-           (new-paths (apply #'append new-paths))
-           (new-paths (string-join new-paths path-separator)))
-      (setq-default eshell-path-env new-paths)
-      (setenv "PATH" new-paths)))
-
-  (defun package-find-reqs (pkg)
-    "Looks up the requirements for PKG from PACKAGE-ARCHIVE-CONTENTS.
-
- Returns a list of tuples (NAME VERSION) if found, otherwise nil. "
-    (pcase (assoc pkg package-archive-contents)
-      (`(,name ,desc) (package-desc-reqs desc))))
-
-  (cl-defun fill-line (char &optional (width fill-column))
-    (interactive "cFill character: \nP")
-    (message "filling %c to column %d" char width)
-    (save-excursion
-      (end-of-line)
-      (while (< (current-column) width)
-        (insert-char char)))))
-
 (use-package no-littering
   :config
   (setq auto-save-file-name-transforms `((".*" ,(no-littering-expand-var-file-name "auto-save/") t))
-        custom-file (no-littering-expand-etc-file-name "custom.el")))
-
-(use-package doom-themes
-  :config
-  (load-theme 'doom-spacegrey t))
+        custom-file (no-littering-expand-etc-file-name "custom.el"))
+  (load custom-file 'noerror 'nomessage))
 
 (use-package beacon
   :config
-  (beacon-mode 1))
-
-;; macOS specials
-(progn
-  (defvar *think-different* (eq system-type 'darwin))
-  (defvar *homebrew-coreutils-gnubin* "/usr/local/opt/coreutils/libexec/gnubin")
-
-  (when *think-different*
-    ;; Make emojis work
-    (set-fontset-font "fontset-default" 'unicode "Apple Color Emoji" nil 'prepend)
-    ;; Make ⌘-w close the current
-    (bind-key "s-w" #'kill-this-buffer)
-    (unbind-key "C-z"))
-
-  (use-package ns-auto-titlebar
-    :if *think-different*
-    :config
-    (ns-auto-titlebar-mode)
-    (setq ns-use-proxy-icon nil))
-
-  ;; Get exec path from shell on mac, by default some dirs are missing
-  (use-package exec-path-from-shell
-    :if *think-different*
-    :config  
-    (exec-path-from-shell-initialize)
-    (add-to-path *homebrew-coreutils-gnubin*)))
+  (beacon-mode 1)
+  :custom
+  (beacon-blink-when-focused t)
+  (beacon-blink-when-point-moves-vertically 5)
+  (beacon-blink-when-point-moves-horizontally 20))
 
 (use-package ivy
   :bind ("C-s" . swiper)
@@ -228,11 +225,11 @@ Prepends by default, append by setting APPEND to non-nil."
   (counsel-mode +1))
 
 (use-package projectile
+  :init
+  (projectile-mode +1)
   :bind (:map projectile-mode-map
               ("s-p" . projectile-command-map)
-              ("C-c p" . projectile-command-map))
-  :config
-  (projectile-mode +1))
+              ("C-c p" . projectile-command-map)))
 
 (use-package ace-window
   :bind ("M-o" . ace-window))
@@ -243,17 +240,21 @@ Prepends by default, append by setting APPEND to non-nil."
   (diminish 'auto-revert-mode))
 
 (use-package which-key
-  :diminish which-key-mode
+  :diminish
   :config
   (which-key-mode))
 
-(use-package slime
-  :bind ("C-c s" . slime-selector)
+(use-package sly
   :config
-  (setq slime-lisp-implementations '(("sbcl" ("/usr/local/bin/sbcl"))))
-  (slime-setup))
+  (setq sly-lisp-implementations
+        `((sbcl (,(executable-find "sbcl")) :coding-system utf-8-unix))))
+
+(use-package ag)
+
+(use-package rg)
 
 (use-package company
+  :after (ag rg)
   :hook (after-init . global-company-mode)
   :bind (:map company-active-map
               ("C-n" . company-select-next)
@@ -261,9 +262,16 @@ Prepends by default, append by setting APPEND to non-nil."
               ("C-d" . company-show-doc-buffer)
               ("M-." . company-show-location)))
 
-(use-package slime-company
-  :config
-  (add-to-list 'slime-contribs 'slime-company))
+;; (use-package slime
+;;   :bind ("C-c s" . slime-selector)
+;;   :config
+;;   (setq slime-lisp-implementations '(("sbcl" ("/usr/local/bin/sbcl"))))
+;;   (slime-setup '(slime-fancy slime-company)))
+
+;; (use-package slime-company
+;;   :after (slime company)
+;;   :config (setq slime-company-completion 'fuzzy
+;;                 slime-company-after-completion 'slime-company-just-one-space))
 
 (use-package magit
   :bind (("C-x g" . magit-status)
@@ -286,6 +294,7 @@ Prepends by default, append by setting APPEND to non-nil."
            scheme-mode
            ielm-mode
            slime-repl-mode
+           sly-mrepl-mode
            eval-expression-minibuffer-setup
            slime-mode
            clojure-mode) . enable-paredit-mode)
@@ -302,36 +311,115 @@ Prepends by default, append by setting APPEND to non-nil."
   :config
   (show-paren-mode 1))
 
-(use-package woman)
-
-(use-package erlang
-  :custom (erlang-root-dir (erl-eval-print "code:root_dir()"))
-  :config
-  (require 'erlang-start)
-  (pcase (erl-eval-print "code:root_dir()")
-    ('nil)
-    (lib-dir (add-to-list 'woman-manpath (expand-file-name "man" lib-dir)))))
-
-;; (use-package erlang
-;;   :ensure nil
-;;   :if (executable-find "erl")
-;;   :load-path (lambda () (concat (erl-eval-print "code:lib_dir(tools)") "/emacs"))
-;;   :custom (erlang-root-dir (erl-eval-print "code:root_dir()"))
-;;   :init
-;;   (add-to-list 'exec-path (concat (erl-eval-print "code:root_dir()") "/bin")))
+(use-package erlang)
 
 (use-package editorconfig
-  :diminish editorconfig-mode
+  :diminish
   :config
   (editorconfig-mode 1))
 
-(dolist (p '("al-khanji/erlang_ls/_build/default/bin"
-             "al-khanji/erlang_ls/_build/dap/bin"))
-  (add-to-path (local-github-subdir p)))
+;(add-to-path "/usr/local/opt/llvm/bin")
 
-(use-package lsp-ui)
+(use-package lsp-mode
+  :init
+  (setq lsp-keymap-prefix "C-c l")
+  :hook ((erlang-mode . lsp)
+         (c-mode . lsp)
+         (c++-mode . lsp)
+         (lsp-mode . lsp-enable-which-key-integration)
+         (lsp-mode . lsp-lens-mode))
+  :commands lsp)
 
-(use-package lsp-mode)
+(use-package lsp-ui
+  :after (lsp-mode)
+  :commands lsp-ui-mode
+  :bind (:map lsp-ui-mode-map
+              ([remap xref-find-definitions] . lsp-ui-peek-find-definitions)
+              ([remap xref-find-references] . lsp-ui-peek-find-references)
+              ("C-c u" . lsp-ui-imenu))
+  :init
+  (setq lsp-ui-doc-enable t
+        lsp-ui-doc-include-signature t
+        lsp-ui-peek-enable t
+        lsp-ui-peek-show-directory t
+        lsp-ui-sideline-update-mode 'line
+        lsp-ui-sideline-enable t
+        lsp-ui-sideline-show-code-actions t
+        lsp-ui-sideline-show-hover nil
+        lsp-ui-sideline-ignore-duplicate t)
+  :config
+  (add-to-list 'lsp-ui-doc-frame-parameters '(right-fringe . 8))
+  
+  ;; `C-g'to close doc
+  (advice-add #'keyboard-quit :before #'lsp-ui-doc-hide)
+
+  ;; Reset `lsp-ui-doc-background' after loading theme
+  (add-hook 'after-load-theme-hook
+       (lambda ()
+         (setq lsp-ui-doc-border (face-foreground 'default))
+         (set-face-background 'lsp-ui-doc-background
+                              (face-background 'tooltip))))
+
+  ;; WORKAROUND Hide mode-line of the lsp-ui-imenu buffer
+  ;; @see https://github.com/emacs-lsp/lsp-ui/issues/243
+  (defadvice lsp-ui-imenu (after hide-lsp-ui-imenu-mode-line activate)
+    (setq mode-line-format nil)))
+
+(use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
+
+(use-package treemacs
+  :init
+  (with-eval-after-load 'winum
+    (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
+  :config
+  (treemacs-follow-mode t)
+  (treemacs-filewatch-mode t)
+  (treemacs-fringe-indicator-mode 'always)
+  (pcase (cons (not (null (executable-find "git")))
+               (not (null treemacs-python-executable)))
+    (`(t . t)
+     (treemacs-git-mode 'deferred))
+    (`(t . _)
+     (treemacs-git-mode 'simple)))
+  
+  (treemacs-hide-gitignored-files-mode nil)
+  :bind (:map global-map
+              ("M-0"       . treemacs-select-window)
+              ("C-x t 1"   . treemacs-delete-other-windows)
+              ("C-x t t"   . treemacs)
+              ("C-x t d"   . treemacs-select-directory)
+              ("C-x t B"   . treemacs-bookmark)
+              ("C-x t C-t" . treemacs-find-file)
+              ("C-x t M-t" . treemacs-find-tag)))
+
+(use-package lsp-treemacs
+  :after (treemacs lsp-mode)
+  :config
+  (lsp-treemacs-sync-mode 1))
+
+(use-package treemacs-magit
+  :after (treemacs magit))
+
+(use-package treemacs-icons-dired
+  :hook (dired-mode . treemacs-icons-dired-enable-once))
+
+(use-package treemacs-projectile
+  :after (treemacs projectile))
+
+(use-package esup
+  :config
+  ;; Work around a bug where esup tries to step into the byte-compiled
+  ;; version of `cl-lib', and fails horribly.
+  (setq esup-depth 0))
+
+(use-package gcmh
+  :diminish
+  :custom
+  (gcmh-high-cons-threshold (* 2 1024 1024 1024))
+  :config
+  (gcmh-mode 1))
+
+(server-start)
 
 (provide 'init)
 
