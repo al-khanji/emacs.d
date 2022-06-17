@@ -1,14 +1,45 @@
-;;; init.el -*- lexical-binding: t; -*-
+;;;; init.el -*- lexical-binding: t; -*-
 
 (require 'cl-lib)
 (require 'eshell)
+(require 'dired-x)
 
-;; Contrary to what many Emacs users have in their configs, you don't need
-;; more than this to make UTF-8 the default coding system:
+;;; basic package setup
+(progn
+  (require 'package)
+  (setq package-archives '(("melpa" . "https://melpa.org/packages/")
+                           ("elpa" . "https://elpa.gnu.org/packages/")))
+
+  (package-initialize)
+
+  (unless package-archive-contents
+    (package-refresh-contents))
+
+  (unless (package-installed-p 'use-package)
+    (package-install 'use-package))
+
+  (require 'use-package)
+  (setq use-package-always-ensure t))
+
+(use-package no-littering
+  :config
+  (setq auto-save-file-name-transforms `((".*" ,(no-littering-expand-var-file-name "auto-save/") t))
+        custom-file (no-littering-expand-etc-file-name "custom.el"))
+  (load custom-file 'noerror 'nomessage))
+
+(use-package doom-themes
+  :config
+  (load-theme 'doom-spacegrey t))
+
+;;; Contrary to what many Emacs users have in their configs, you don't need
+;;; more than this to make UTF-8 the default coding system:
 (set-language-environment "UTF-8")
 
-;; set-language-enviornment sets default-input-method, which is unwanted
+;;; set-language-environment sets default-input-method, which is unwanted
 (setq default-input-method nil)
+
+;;; lsp-mode documentation suggests tweaking this
+(setq read-process-output-max (* 8 1024 1024)) ;; 8 MB
 
 (setq inhibit-startup-screen t
       sentence-end-double-space nil
@@ -17,33 +48,49 @@
       use-dialog-box nil
       create-lockfiles nil
       compilation-scroll-output t
-      frame-title-format `((buffer-file-name "%f" "%b")
-                           " [" (:eval (projectile-project-name)) "]"))
+      native-comp-async-report-warnings-errors 'silent
+      dired-dwim-target t)
 
-;; Never mix tabs and spaces. Never use tabs, period.
-;; We need the setq-default here because this becomes
-;; a buffer-local variable when set.
+;;; Always reload unchanged buffers if the underlying file changes on disk
+(global-auto-revert-mode t)
+
+;;; never mix tabs and spaces. Never use tabs, period.
+;;; We need the setq-default here because this becomes
+;;; a buffer-local variable when set.
 (setq-default indent-tabs-mode nil)
 
-;; Not set by default on macOS
+(setq vc-handled-backends nil)
+
+;;; Not set by default on macOS
 (unless (getenv "DISPLAY")
   (setenv "DISPLAY" ":0"))
 
-;(delete-selection-mode t)
+;;; Show column in modeline
 (column-number-mode)
 
-;; Line numbers everywhere, except ...
+;;; highlight current line in prog and text modes
+(dolist (hook '(prog-mode-hook text-mode-hook))
+  (add-hook hook 'hl-line-mode))
+
+;;; Line numbers everywhere, except ...
 (global-display-line-numbers-mode t)
-;; ... for some modes
+;;; ... for some modes
 (dolist (mode '(org-mode-hook
                 treemacs-mode-hook
-                comint-mode-hook))
+                comint-mode-hook
+                vterm-mode-hook
+                sly-mrepl-mode-hook
+                osm-mode-hook))
   (add-hook mode (lambda () (display-line-numbers-mode 0))))
+
+;;; Clickable links
+(dolist (mode '(text-mode-hook prog-mode-hook vterm-mode-hook))
+  (add-hook mode 'goto-address-mode))
 
 (tool-bar-mode -1)
 (scroll-bar-mode -1)
 
-;; Some utility functions
+;;; Some utility functions
 (progn
   (cl-defun add-to-path (p &optional (append nil))
     "Add P to path variables: exec-path eshell-path-env $PATH.
@@ -76,39 +123,7 @@ Prepends by default, append by setting APPEND to non-nil."
       (while (< (current-column) width)
         (insert-char char)))))
 
-
-;; basic package setup
-(progn
-  (require 'package)
-  (setq package-archives '(("melpa" . "https://melpa.org/packages/")
-                           ("org" . "https://orgmode.org/elpa/")
-                           ("elpa" . "https://elpa.gnu.org/packages/")))
-
-  (package-initialize)
-  
-  (unless package-archive-contents
-    (package-refresh-contents))
-
-  (unless (package-installed-p 'use-package)
-    (package-install 'use-package))
-
-  (require 'use-package)
-  (setq use-package-always-ensure t))
-
-(use-package doom-themes
-  :config
-  (load-theme 'doom-spacegrey t))
-
-(use-package auto-package-update
-  :custom
-  (auto-package-update-interval 7)
-  (auto-package-update-prompt-before-update t)
-  (auto-package-update-hide-results t)
-  :config
-  (auto-package-update-maybe)
-  (auto-package-update-at-time "09:00"))
-
-;; macOS specials
+;;; macOS specials
 (progn
   (defvar *think-different* (eq system-type 'darwin))
   (defvar *homebrew-coreutils-gnubin* "/usr/local/opt/coreutils/libexec/gnubin")
@@ -118,7 +133,8 @@ Prepends by default, append by setting APPEND to non-nil."
     (set-fontset-font "fontset-default" 'unicode "Apple Color Emoji" nil 'prepend)
     ;; Make ⌘-w close the current
     (bind-key "s-w" #'kill-this-buffer)
-    (unbind-key "C-z"))
+    (unbind-key "C-z")
+    (unbind-key "s-o"))
 
   (use-package ns-auto-titlebar
     :if *think-different*
@@ -129,11 +145,13 @@ Prepends by default, append by setting APPEND to non-nil."
   ;; Get exec path from shell on mac, by default some dirs are missing
   (use-package exec-path-from-shell
     :if *think-different*
-    :config  
+    :custom
+    (exec-path-from-shell-variables '("PATH" "CF_BUILD_GENERATOR"))
+    :config
     (exec-path-from-shell-initialize)
     (add-to-path *homebrew-coreutils-gnubin*)))
 
-;; Custom github bits and pieces
+;;; Custom github bits and pieces
 (progn
   (defvar *local-github-dir* (expand-file-name "~/github"))
   (defvar *github-urls* '((:https "https://github.com/")
@@ -167,7 +185,7 @@ Prepends by default, append by setting APPEND to non-nil."
       (message "github-clone %s -> %s" src dst)
       (magit-clone-regular src dst nil))))
 
-;; Erlang stuff
+;;; Erlang stuff
 (progn
   (defvar *erlang-binary* (executable-find "erl"))
 
@@ -193,11 +211,23 @@ Prepends by default, append by setting APPEND to non-nil."
           (when (zerop exit-code)
             output))))))
 
-(use-package no-littering
+(use-package org
+  :custom
+  (org-startup-indented t)
+  (org-adapt-indentation t)
   :config
-  (setq auto-save-file-name-transforms `((".*" ,(no-littering-expand-var-file-name "auto-save/") t))
-        custom-file (no-littering-expand-etc-file-name "custom.el"))
-  (load custom-file 'noerror 'nomessage))
+  ;; load more export backends
+  (dolist (backend '(ox-beamer ox-md))
+    (require backend)))
+
+(use-package auto-package-update
+  :custom
+  (auto-package-update-interval 7)
+  (auto-package-update-prompt-before-update nil)
+  (auto-package-update-hide-results t)
+  :config
+  (add-hook 'after-init-hook #'auto-package-update-maybe)
+  (auto-package-update-at-time "09:00"))
 
 (use-package beacon
   :config
@@ -212,7 +242,8 @@ Prepends by default, append by setting APPEND to non-nil."
   :config
   (ivy-mode +1)
   (setq ivy-use-virtual-buffers t
-        ivy-count-format "(%d/%d) "))
+        ivy-count-format "(%d/%d) ")
+  (push (cons 'counsel-M-x "") ivy-initial-inputs-alist))
 
 (use-package ivy-rich
   :after (counsel ivy)
@@ -220,24 +251,80 @@ Prepends by default, append by setting APPEND to non-nil."
   (ivy-rich-mode +1)
   (setcdr (assq t ivy-format-functions-alist) #'ivy-format-function-line))
 
+(use-package amx)
+
 (use-package counsel
+  :after (amx)
   :config
   (counsel-mode +1))
 
+(use-package marginalia
+  ;; Either bind `marginalia-cycle` globally or only in the minibuffer
+  :bind (("M-A" . marginalia-cycle)
+         :map minibuffer-local-map
+         ("M-A" . marginalia-cycle))
+
+  ;; The :init configuration is always executed (Not lazy!)
+  :init
+
+  ;; Must be in the :init section of use-package such that the mode gets
+  ;; enabled right away. Note that this forces loading the package.
+  (marginalia-mode))
+
+(use-package embark
+  :bind
+  (("C-." . embark-act)         ;; pick some comfortable binding
+   ("C-;" . embark-dwim)        ;; good alternative: M-.
+   ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
+
+  :init
+
+  ;; Optionally replace the key help with a completing-read interface
+  (setq prefix-help-command #'embark-prefix-help-command)
+
+  :config
+
+  ;; Hide the mode line of the Embark live/completions buffers
+  (add-to-list 'display-buffer-alist
+               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
+                 nil
+                 (window-parameters (mode-line-format . none)))))
+
 (use-package projectile
+  :after (ivy)
   :init
   (projectile-mode +1)
+  :custom
+  (projectile-indexing-method 'hybrid)
+  (projectile-enable-caching t)
   :bind (:map projectile-mode-map
               ("s-p" . projectile-command-map)
-              ("C-c p" . projectile-command-map)))
+              ("C-c p" . projectile-command-map))
+  :config
+  (setq frame-title-format `((buffer-file-name "%f" "%b") " [" (:eval (projectile-project-name)) "]")))
+
+(use-package counsel-projectile
+  :after (counsel projectile)
+  :init
+  (counsel-projectile-mode))
+
+(defun lma-ace-window (arg)
+  (interactive "p")
+  (cl-case arg
+    ;; Move buffer to target window, select target window, delete old window
+    (64 (aw-select " Move buffer to window killing old window"
+                   (lambda (window)
+                     (let* ((buffer (current-buffer))
+                            (old-window (selected-window)))
+                       (set-window-buffer window buffer)
+                       (select-window window)
+                       (delete-window old-window)))))
+    (t (ace-window arg))))
 
 (use-package ace-window
-  :bind ("M-o" . ace-window))
-
-(use-package diminish
-  :config
-  (diminish 'eldoc-mode)
-  (diminish 'auto-revert-mode))
+  :custom
+  (aw-swap-invert t)
+  :bind (("M-o" . lma-ace-window)))
 
 (use-package which-key
   :diminish
@@ -247,7 +334,12 @@ Prepends by default, append by setting APPEND to non-nil."
 (use-package sly
   :config
   (setq sly-lisp-implementations
-        `((sbcl (,(executable-find "sbcl")) :coding-system utf-8-unix))))
+        `((sbcl (,(executable-find "sbcl") "--dynamic-space-size" "2048") :coding-system utf-8-unix))))
+
+(use-package sly-macrostep
+  :after sly
+  :config
+  (load "sly-macrostep-autoloads"))
 
 (use-package ag)
 
@@ -255,6 +347,13 @@ Prepends by default, append by setting APPEND to non-nil."
 
 (use-package company
   :after (ag rg)
+  :custom
+  (company-idle-delay 0)
+  (company-minimum-prefix-length 1)
+  (company-tooltip-align-annotations t)
+  (company-global-modes '(not wa-meta-repl-mode))
+  :config
+  (setq lsp-completion-provider :capf)
   :hook (after-init . global-company-mode)
   :bind (:map company-active-map
               ("C-n" . company-select-next)
@@ -262,16 +361,19 @@ Prepends by default, append by setting APPEND to non-nil."
               ("C-d" . company-show-doc-buffer)
               ("M-." . company-show-location)))
 
-;; (use-package slime
-;;   :bind ("C-c s" . slime-selector)
-;;   :config
-;;   (setq slime-lisp-implementations '(("sbcl" ("/usr/local/bin/sbcl"))))
-;;   (slime-setup '(slime-fancy slime-company)))
+;; (use-package eglot
+;;   :custom
+;;   (eglot-extend-to-xref t)
+;;   (eglot-confirm-server-initiated-edits nil))
 
-;; (use-package slime-company
-;;   :after (slime company)
-;;   :config (setq slime-company-completion 'fuzzy
-;;                 slime-company-after-completion 'slime-company-just-one-space))
+(use-package company-box
+  :after company
+  :hook (company-mode . company-box-mode)
+  :custom
+  (company-box-frame-behavior 'point))
+
+(use-package minions
+  :config (minions-mode 1))
 
 (use-package magit
   :bind (("C-x g" . magit-status)
@@ -314,11 +416,12 @@ Prepends by default, append by setting APPEND to non-nil."
 (use-package erlang)
 
 (use-package editorconfig
-  :diminish
   :config
   (editorconfig-mode 1))
 
-;(add-to-path "/usr/local/opt/llvm/bin")
+(use-package yasnippet
+  :config
+  (yas-global-mode))
 
 (use-package lsp-mode
   :init
@@ -329,6 +432,13 @@ Prepends by default, append by setting APPEND to non-nil."
          (lsp-mode . lsp-enable-which-key-integration)
          (lsp-mode . lsp-lens-mode))
   :commands lsp)
+
+(use-package lsp-python-ms
+  :ensure t
+  :init (setq lsp-python-ms-auto-install-server t)
+  :hook (python-mode . (lambda ()
+                          (require 'lsp-python-ms)
+                          (lsp))))  ; or lsp-deferred
 
 (use-package lsp-ui
   :after (lsp-mode)
@@ -349,16 +459,16 @@ Prepends by default, append by setting APPEND to non-nil."
         lsp-ui-sideline-ignore-duplicate t)
   :config
   (add-to-list 'lsp-ui-doc-frame-parameters '(right-fringe . 8))
-  
+
   ;; `C-g'to close doc
   (advice-add #'keyboard-quit :before #'lsp-ui-doc-hide)
 
   ;; Reset `lsp-ui-doc-background' after loading theme
   (add-hook 'after-load-theme-hook
-       (lambda ()
-         (setq lsp-ui-doc-border (face-foreground 'default))
-         (set-face-background 'lsp-ui-doc-background
-                              (face-background 'tooltip))))
+            (lambda ()
+              (setq lsp-ui-doc-border (face-foreground 'default))
+              (set-face-background 'lsp-ui-doc-background
+                                   (face-background 'tooltip))))
 
   ;; WORKAROUND Hide mode-line of the lsp-ui-imenu buffer
   ;; @see https://github.com/emacs-lsp/lsp-ui/issues/243
@@ -381,7 +491,7 @@ Prepends by default, append by setting APPEND to non-nil."
      (treemacs-git-mode 'deferred))
     (`(t . _)
      (treemacs-git-mode 'simple)))
-  
+
   (treemacs-hide-gitignored-files-mode nil)
   :bind (:map global-map
               ("M-0"       . treemacs-select-window)
@@ -413,13 +523,46 @@ Prepends by default, append by setting APPEND to non-nil."
   (setq esup-depth 0))
 
 (use-package gcmh
-  :diminish
   :custom
   (gcmh-high-cons-threshold (* 2 1024 1024 1024))
   :config
   (gcmh-mode 1))
 
+;;; fix M-. (aka xref-find-definitions) in ielm
+(use-package ielm
+  :hook (ielm-mode . (lambda ()
+                       (add-hook 'xref-backend-functions #'elisp--xref-backend nil t))))
+
+(use-package vterm
+  :custom
+  (vterm-always-compile-module t)
+  (vterm-module-cmake-args "-DUSE_SYSTEM_LIBVTERM=no"))
+
+(use-package saveplace
+  :config
+  (save-place-mode))
+
+(use-package osm
+  :bind (("C-c m h" . osm-home)
+   	 ("C-c m s" . osm-search)
+   	 ("C-c m v" . osm-server)
+   	 ("C-c m t" . osm-goto)
+   	 ("C-c m x" . osm-gpx-show)
+   	 ("C-c m j" . osm-bookmark-jump))
+  :init
+  ;; Load Org link support
+  (with-eval-after-load 'org
+    (require 'osm-ol)))
+
+(use-package minimap)
+
+(use-package cmake-mode)
+
 (server-start)
 
 (provide 'init)
 
+(cl-defun load-my (filename)
+  (load (concat user-emacs-directory filename) 'noerror))
+
+(load-my "meta.el")
