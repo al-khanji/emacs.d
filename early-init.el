@@ -51,7 +51,6 @@
                                     (top . 0.5)
                                     (vertical-scroll-bars . nil)
                                     (horizontal-scroll-bars . nil)
-                                    (ns-transparent-titlebar . t)
-                                    (font . "Iosevka Term-16"))
+                                    (ns-transparent-titlebar . t))
                                   default-frame-alist))
 

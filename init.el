@@ -31,6 +31,9 @@
   :config
   (load-theme 'doom-spacegrey t))
 
+(when (find-font (font-spec :family "Iosevka Term"))
+ (set-face-attribute 'default nil :font "Iosevka Term-16"))
+
 ;;; Contrary to what many Emacs users have in their configs, you don't need
 ;;; more than this to make UTF-8 the default coding system:
 (set-language-environment "UTF-8")
