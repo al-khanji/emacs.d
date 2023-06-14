@@ -3,3 +3,4 @@ packages
 transient
 auto-save-list/
 eshell
+site-config.el

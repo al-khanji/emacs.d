@@ -558,6 +558,8 @@ Prepends by default, append by setting APPEND to non-nil."
 
 (use-package default-text-scale)
 
+(load "site-config" 'noerror)
+
 (server-start)
 
 (provide 'init)
