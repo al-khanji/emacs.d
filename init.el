@@ -433,17 +433,20 @@ Prepends by default, append by setting APPEND to non-nil."
 (use-package lsp-mode
   :init
   (setq lsp-keymap-prefix "C-c l")
-  :hook ((erlang-mode . lsp)
-         (c-mode . lsp)
-         (c++-mode . lsp)
-         (lsp-mode . lsp-enable-which-key-integration)
-         (lsp-mode . lsp-lens-mode))
+  :hook ((erlang-mode . lsp-deferred)
+         (lsp-mode . lsp-enable-which-key-integration))
+  :custom
+  (lsp-lens-enable nil)
   :commands lsp)
 
 (use-package lsp-pyright
   :hook (python-mode . (lambda ()
                           (require 'lsp-pyright)
                           (lsp-deferred))))
+
+(use-package ccls
+  :hook ((c-mode c++-mode objc-mode cuda-mode) .
+         (lambda () (require 'ccls) (lsp-deferred))))
 
 (use-package lsp-ui
   :after (lsp-mode)
