@@ -568,3 +568,4 @@ Prepends by default, append by setting APPEND to non-nil."
 (provide 'init)
 
 (put 'scroll-left 'disabled nil)
+(setenv "EDITOR" "emacsclient")
