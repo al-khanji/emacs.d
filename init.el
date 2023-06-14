@@ -478,12 +478,7 @@ Prepends by default, append by setting APPEND to non-nil."
             (lambda ()
               (setq lsp-ui-doc-border (face-foreground 'default))
               (set-face-background 'lsp-ui-doc-background
-                                   (face-background 'tooltip))))
-
-  ;; WORKAROUND Hide mode-line of the lsp-ui-imenu buffer
-  ;; @see https://github.com/emacs-lsp/lsp-ui/issues/243
-  (defadvice lsp-ui-imenu (after hide-lsp-ui-imenu-mode-line activate)
-    (setq mode-line-format nil)))
+                                   (face-background 'tooltip)))))
 
 (use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
 
