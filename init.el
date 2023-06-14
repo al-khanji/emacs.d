@@ -399,6 +399,9 @@ Prepends by default, append by setting APPEND to non-nil."
 (use-package paredit
   :bind (:map lisp-mode-shared-map
               ("RET" . paredit-newline))
+  :config
+  (define-key paredit-mode-map (kbd "RET") nil)
+  (define-key paredit-mode-map (kbd "C-j") 'paredit-newline)
   :hook (((emacs-lisp-mode
            lisp-mode
            lisp-interaction-mode
