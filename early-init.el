@@ -45,12 +45,11 @@
               (when (package-installed-p 'gcmh)
                 (gcmh-mode 1)))))
 
-(setq default-frame-alist (append '((width . 0.7)
+(modify-all-frames-parameters '((width . 0.7)
                                     (height . 0.7)
                                     (left . 0.5)
                                     (top . 0.5)
                                     (vertical-scroll-bars . nil)
                                     (horizontal-scroll-bars . nil)
-                                    (ns-transparent-titlebar . t))
-                                  default-frame-alist))
+                                    (ns-transparent-titlebar . t)))
 
