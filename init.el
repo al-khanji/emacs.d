@@ -380,9 +380,7 @@ Prepends by default, append by setting APPEND to non-nil."
 
 (use-package company-box
   :after company
-  :hook (company-mode . company-box-mode)
-  :custom
-  (company-box-frame-behavior 'point))
+  :hook (company-mode . company-box-mode))
 
 (use-package minions
   :config (minions-mode 1))
