@@ -532,7 +532,9 @@ Prepends by default, append by setting APPEND to non-nil."
 (use-package vterm
   :custom
   (vterm-always-compile-module t)
-  (vterm-module-cmake-args "-DUSE_SYSTEM_LIBVTERM=no"))
+  (vterm-module-cmake-args "-DUSE_SYSTEM_LIBVTERM=no")
+  (vterm-buffer-name-string "vterm %s")
+  (vterm-copy-mode-remove-fake-newlines t))
 
 (use-package saveplace
   :config
