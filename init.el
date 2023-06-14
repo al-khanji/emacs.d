@@ -7,8 +7,10 @@
 ;;; basic package setup
 (progn
   (require 'package)
-  (setq package-archives '(("melpa" . "https://melpa.org/packages/")
-                           ("elpa" . "https://elpa.gnu.org/packages/")))
+  (dolist (package-archive '(("melpa" . "https://melpa.org/packages/")
+                             ("gnu" . "https://elpa.gnu.org/packages/")
+                             ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
+    (add-to-list 'package-archives package-archive))
 
   (package-initialize)
 
