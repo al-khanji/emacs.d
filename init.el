@@ -128,31 +128,29 @@ Prepends by default, append by setting APPEND to non-nil."
         (insert-char char)))))
 
 ;;; macOS specials
-(progn
-  (defvar *think-different* (eq system-type 'darwin))
-  (defvar *homebrew-coreutils-gnubin* "/usr/local/opt/coreutils/libexec/gnubin")
+(defvar *think-different* (eq system-type 'darwin))
+(defvar *homebrew-coreutils-gnubin* "/usr/local/opt/coreutils/libexec/gnubin")
 
+(when *think-different*
+  ;; Make emojis work
+  (set-fontset-font "fontset-default" 'unicode "Apple Color Emoji" nil 'prepend)
+  ;; Make ⌘-w close the current
+  (bind-key "s-w" #'kill-this-buffer)
+  (unbind-key "C-z")
+  (unbind-key "s-o"))
+
+(unless *think-different*
+  (menu-bar-mode 0))
+
+(use-package ns-auto-titlebar
+  :config
+  (ns-auto-titlebar-mode)
+  (setq ns-use-proxy-icon nil))
+
+(use-package exec-path-from-shell
+  :config
+  (exec-path-from-shell-initialize)
   (when *think-different*
-    ;; Make emojis work
-    (set-fontset-font "fontset-default" 'unicode "Apple Color Emoji" nil 'prepend)
-    ;; Make ⌘-w close the current
-    (bind-key "s-w" #'kill-this-buffer)
-    (unbind-key "C-z")
-    (unbind-key "s-o"))
-
-  (use-package ns-auto-titlebar
-    :if *think-different*
-    :config
-    (ns-auto-titlebar-mode)
-    (setq ns-use-proxy-icon nil))
-
-  ;; Get exec path from shell on mac, by default some dirs are missing
-  (use-package exec-path-from-shell
-    :if *think-different*
-    :custom
-    (exec-path-from-shell-variables '("PATH" "CF_BUILD_GENERATOR"))
-    :config
-    (exec-path-from-shell-initialize)
     (add-to-path *homebrew-coreutils-gnubin*)))
 
 ;;; Custom github bits and pieces
