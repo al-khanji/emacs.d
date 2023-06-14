@@ -234,6 +234,11 @@ Prepends by default, append by setting APPEND to non-nil."
   (dolist (backend '(ox-beamer ox-md))
     (require backend)))
 
+(use-package org-contrib
+  :after org
+  :config
+  (require 'ox-confluence))
+
 (use-package auto-package-update
   :custom
   (auto-package-update-interval 7)
