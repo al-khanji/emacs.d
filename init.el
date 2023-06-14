@@ -494,6 +494,8 @@ Prepends by default, append by setting APPEND to non-nil."
   (with-eval-after-load 'winum
     (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
   :config
+  (define-key treemacs-mode-map [drag-mouse-1] nil)
+  :hook (after-init . treemacs)
   :bind (:map global-map
               ("M-0"       . treemacs-select-window)
               ("C-x t 1"   . treemacs-delete-other-windows)
