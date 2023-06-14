@@ -567,7 +567,3 @@ Prepends by default, append by setting APPEND to non-nil."
 
 (provide 'init)
 
-(cl-defun load-my (filename)
-  (load (concat user-emacs-directory filename) 'noerror))
-
-(load-my "meta.el")
