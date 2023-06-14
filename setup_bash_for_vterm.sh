@@ -1,4 +1,4 @@
-$!/bin/bash -eux
+$!/bin/bash -e
 
 if ! grep -q vterm_printf ~/.bashrc
 then
