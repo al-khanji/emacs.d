@@ -440,12 +440,10 @@ Prepends by default, append by setting APPEND to non-nil."
          (lsp-mode . lsp-lens-mode))
   :commands lsp)
 
-(use-package lsp-python-ms
-  :ensure t
-  :init (setq lsp-python-ms-auto-install-server t)
+(use-package lsp-pyright
   :hook (python-mode . (lambda ()
-                          (require 'lsp-python-ms)
-                          (lsp))))  ; or lsp-deferred
+                          (require 'lsp-pyright)
+                          (lsp-deferred))))
 
 (use-package lsp-ui
   :after (lsp-mode)
