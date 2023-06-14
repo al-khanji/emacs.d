@@ -561,6 +561,8 @@ Prepends by default, append by setting APPEND to non-nil."
 
 (use-package cmake-mode)
 
+(use-package default-text-scale)
+
 (server-start)
 
 (provide 'init)
