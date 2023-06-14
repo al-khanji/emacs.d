@@ -46,12 +46,12 @@
                 (gcmh-mode 1)))))
 
 (modify-all-frames-parameters '((width . 0.7)
-                                    (height . 0.7)
-                                    (left . 0.5)
-                                    (top . 0.5)
-                                    (vertical-scroll-bars . nil)
-                                    (horizontal-scroll-bars . nil)
-                                    (ns-transparent-titlebar . t)))
+                                (height . 0.7)
+                                (left . 0.5)
+                                (top . 0.5)
+                                (vertical-scroll-bars . nil)
+                                (horizontal-scroll-bars . nil)
+                                (ns-transparent-titlebar . t)))
 
 (setenv "LSP_USE_PLISTS" "true")
 
