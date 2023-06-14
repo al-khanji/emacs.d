@@ -358,13 +358,10 @@ Prepends by default, append by setting APPEND to non-nil."
 (use-package company
   :after (ag rg)
   :custom
-  (company-idle-delay 0)
-  (company-minimum-prefix-length 1)
+  (lsp-completion-provider :capf)
   (company-tooltip-align-annotations t)
-  (company-global-modes '(not wa-meta-repl-mode))
-  :config
-  (setq lsp-completion-provider :capf)
-  :hook (after-init . global-company-mode)
+  (company-dabbrev-downcase nil)
+  :hook ((ielm-mode prog-mode sly-mrepl-mode) . company-mode)
   :bind (:map company-active-map
               ("C-n" . company-select-next)
               ("C-p" . company-select-previous)
