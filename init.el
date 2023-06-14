@@ -52,7 +52,8 @@
       create-lockfiles nil
       compilation-scroll-output t
       native-comp-async-report-warnings-errors 'silent
-      dired-dwim-target t)
+      dired-dwim-target t
+      make-backup-files nil)
 
 ;;; Always reload unchanged buffers if the underlying file changes on disk
 (global-auto-revert-mode t)
