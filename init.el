@@ -215,6 +215,14 @@ Prepends by default, append by setting APPEND to non-nil."
           (when (zerop exit-code)
             output))))))
 
+(use-package logview
+  :ensure t
+  :custom-face
+  (logview-error-entry ((t (:inherit error))))
+  (logview-warning-entry ((t (:inherit warning))))
+  (logview-information-entry ((t (:inherit default))))
+  (logview-debug-entry ((t (:inherit shadow)))))
+
 (use-package org
   :custom
   (org-startup-indented t)
