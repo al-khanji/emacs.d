@@ -12,3 +12,5 @@ brew tap d12frosted/emacs-plus
 brew install emacs-plus --with-native-comp --with-imagemagick --with-xwidgets
 
 ln -sf /usr/local/opt/emacs-plus/Emacs.app /Applications
+
+~/.emacs.d/setup_bash_for_vterm.sh
