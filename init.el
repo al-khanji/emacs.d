@@ -555,7 +555,9 @@ Prepends by default, append by setting APPEND to non-nil."
   (with-eval-after-load 'org
     (require 'osm-ol)))
 
-(use-package minimap)
+(use-package minimap
+  :custom
+  (minimap-window-location 'right))
 
 (use-package cmake-mode)
 
