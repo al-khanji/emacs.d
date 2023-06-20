@@ -408,6 +408,7 @@ Prepends by default, append by setting APPEND to non-nil."
   (define-key paredit-mode-map (kbd "C-j") 'paredit-newline)
   :hook (((emacs-lisp-mode
            lisp-mode
+           lisp-data-mode
            lisp-interaction-mode
            scheme-mode
            ielm-mode
