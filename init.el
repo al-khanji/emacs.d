@@ -546,6 +546,11 @@ Prepends by default, append by setting APPEND to non-nil."
   (vterm-buffer-name-string "vterm %s")
   (vterm-copy-mode-remove-fake-newlines t))
 
+(use-package with-editor
+  :hook ((shell-mode eshell-mode term-exec vterm-mode) . 'with-editor-export-editor)
+  :bind (([remap async-shell-command] . 'with-editor-async-shell-command)
+         ([remap shell-command] . 'with-editor-shell-command)))
+
 (use-package saveplace
   :config
   (save-place-mode))
