@@ -67,8 +67,6 @@
 ;;; a buffer-local variable when set.
 (setq-default indent-tabs-mode nil)
 
-(setq vc-handled-backends nil)
-
 ;;; Not set by default on macOS
 (unless (getenv "DISPLAY")
   (setenv "DISPLAY" ":0"))
