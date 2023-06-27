@@ -570,11 +570,11 @@ Prepends by default, append by setting APPEND to non-nil."
 
 (use-package default-text-scale)
 
-(load "site-config" 'noerror)
+(load "~/.emacs.d/site-config" 'noerror)
 
 (server-start)
 
 (provide 'init)
 
 (put 'scroll-left 'disabled nil)
-(setenv "EDITOR" "emacsclient")
+
