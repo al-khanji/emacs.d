@@ -458,6 +458,8 @@ Prepends by default, append by setting APPEND to non-nil."
   :hook ((c-mode c++-mode objc-mode cuda-mode) .
          (lambda () (require 'ccls) (lsp-deferred))))
 
+(use-package google-c-style)
+
 (use-package clang-format)
 
 (use-package lsp-ui
