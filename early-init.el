@@ -53,5 +53,4 @@
                                 (horizontal-scroll-bars . nil)
                                 (ns-transparent-titlebar . t)))
 
-(setenv "LSP_USE_PLISTS" "true")
 

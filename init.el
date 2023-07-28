@@ -14,16 +14,11 @@
 
   (package-initialize)
 
-  (unless package-archive-contents
-    (package-refresh-contents))
-
   (unless (package-installed-p 'use-package)
+    (package-refresh-contents)
     (package-install 'use-package))
 
-  (require 'use-package)
   (setq use-package-always-ensure t))
-
-(use-package gnu-elpa-keyring-update)
 
 (use-package no-littering
   :config
@@ -31,12 +26,16 @@
         custom-file (no-littering-expand-etc-file-name "custom.el"))
   (load custom-file 'noerror 'nomessage))
 
-(use-package doom-themes
+(use-package ef-themes
   :config
-  (load-theme 'doom-spacegrey t))
+  (load-theme 'ef-spring t))
 
 (when (find-font (font-spec :family "Iosevka Term"))
- (set-face-attribute 'default nil :font "Iosevka Term-16"))
+  (set-face-attribute 'default nil :font "Iosevka Term-16"))
+
+(use-package use-package-ensure-system-package)
+
+(use-package gnu-elpa-keyring-update)
 
 ;;; Contrary to what many Emacs users have in their configs, you don't need
 ;;; more than this to make UTF-8 the default coding system:
@@ -44,9 +43,6 @@
 
 ;;; set-language-environment sets default-input-method, which is unwanted
 (setq default-input-method nil)
-
-;;; lsp-mode documentation suggests tweaking this
-(setq read-process-output-max (* 8 1024 1024)) ;; 8 MB
 
 (setq inhibit-startup-screen t
       sentence-end-double-space nil
@@ -59,6 +55,15 @@
       dired-dwim-target t
       make-backup-files nil)
 
+(bind-key "s-[" 'previous-window-any-frame)
+(bind-key "s-]" 'next-window-any-frame)
+
+;;; no blinky
+(blink-cursor-mode -1)
+
+;;; Work around mutter being stupid when it comes to resizes
+(setq x-gtk-resize-child-frames 'hide)
+
 ;;; Always reload unchanged buffers if the underlying file changes on disk
 (global-auto-revert-mode t)
 
@@ -67,10 +72,6 @@
 ;;; a buffer-local variable when set.
 (setq-default indent-tabs-mode nil)
 
-;;; Not set by default on macOS
-(unless (getenv "DISPLAY")
-  (setenv "DISPLAY" ":0"))
-
 ;;; Show column in modeline
 (column-number-mode)
 
@@ -78,20 +79,12 @@
 (dolist (hook '(prog-mode-hook text-mode-hook))
   (add-hook hook 'hl-line-mode))
 
-;;; Line numbers everywhere, except ...
-(global-display-line-numbers-mode t)
-;;; ... for some modes
-(dolist (mode '(org-mode-hook
-                treemacs-mode-hook
-                comint-mode-hook
-                vterm-mode-hook
-                sly-mrepl-mode-hook
-                osm-mode-hook))
-  (add-hook mode (lambda () (display-line-numbers-mode 0))))
+;;; Line numbers in some modes by default
+(dolist (hook '(text-mode-hook prog-mode-hook))
+  (add-hook hook 'display-line-numbers-mode))
 
-;;; Clickable links
-(dolist (mode '(text-mode-hook prog-mode-hook vterm-mode-hook))
-  (add-hook mode 'goto-address-mode))
+;;; Make links clickable
+(global-goto-address-mode)
 
 (tool-bar-mode -1)
 (scroll-bar-mode -1)
@@ -136,13 +129,20 @@ Prepends by default, append by setting APPEND to non-nil."
 (when *think-different*
   ;; Make emojis work
   (set-fontset-font "fontset-default" 'unicode "Apple Color Emoji" nil 'prepend)
-  ;; Make ⌘-w close the current
-  (bind-key "s-w" #'kill-this-buffer)
-  (unbind-key "C-z")
+  ;; Too close to M-o and not needed
   (unbind-key "s-o"))
 
-(unless *think-different*
-  (menu-bar-mode 0))
+(bind-key (if *think-different* "s-w" "C-w") 'kill-this-buffer)
+
+;;; Annoying shortcut to suspend-frame
+(when (display-graphic-p)
+    (unbind-key "C-z"))
+
+(menu-bar-mode (if *think-different* 1 0))
+
+(add-hook 'ielm-mode-hook
+ (lambda ()
+   (add-hook 'xref-backend-functions 'elisp--xref-backend nil t)))
 
 (use-package ns-auto-titlebar
   :config
@@ -216,7 +216,6 @@ Prepends by default, append by setting APPEND to non-nil."
             output))))))
 
 (use-package logview
-  :ensure t
   :custom-face
   (logview-error-entry ((t (:inherit error))))
   (logview-warning-entry ((t (:inherit warning))))
@@ -232,20 +231,6 @@ Prepends by default, append by setting APPEND to non-nil."
   (dolist (backend '(ox-beamer ox-md))
     (require backend)))
 
-(use-package org-contrib
-  :after org
-  :config
-  (require 'ox-confluence))
-
-(use-package auto-package-update
-  :custom
-  (auto-package-update-interval 7)
-  (auto-package-update-prompt-before-update nil)
-  (auto-package-update-hide-results t)
-  :config
-  (add-hook 'after-init-hook #'auto-package-update-maybe)
-  (auto-package-update-at-time "09:00"))
-
 (use-package beacon
   :config
   (beacon-mode 1)
@@ -254,76 +239,10 @@ Prepends by default, append by setting APPEND to non-nil."
   (beacon-blink-when-point-moves-vertically 5)
   (beacon-blink-when-point-moves-horizontally 20))
 
-(use-package ivy
-  :bind ("C-s" . swiper)
-  :config
-  (ivy-mode +1)
-  (setq ivy-use-virtual-buffers t
-        ivy-count-format "(%d/%d) ")
-  (push (cons 'counsel-M-x "") ivy-initial-inputs-alist))
-
-(use-package ivy-rich
-  :after (counsel ivy)
-  :config
-  (ivy-rich-mode +1)
-  (setcdr (assq t ivy-format-functions-alist) #'ivy-format-function-line))
-
-(use-package amx)
-
-(use-package counsel
-  :after (amx)
-  :config
-  (counsel-mode +1))
-
 (use-package marginalia
-  ;; Either bind `marginalia-cycle` globally or only in the minibuffer
-  :bind (("M-A" . marginalia-cycle)
-         :map minibuffer-local-map
-         ("M-A" . marginalia-cycle))
-
-  ;; The :init configuration is always executed (Not lazy!)
+  :bind ("M-A" . marginalia-cycle)
   :init
-
-  ;; Must be in the :init section of use-package such that the mode gets
-  ;; enabled right away. Note that this forces loading the package.
   (marginalia-mode))
-
-(use-package embark
-  :bind
-  (("C-." . embark-act)         ;; pick some comfortable binding
-   ("C-;" . embark-dwim)        ;; good alternative: M-.
-   ("C-h B" . embark-bindings)) ;; alternative for `describe-bindings'
-
-  :init
-
-  ;; Optionally replace the key help with a completing-read interface
-  (setq prefix-help-command #'embark-prefix-help-command)
-
-  :config
-
-  ;; Hide the mode line of the Embark live/completions buffers
-  (add-to-list 'display-buffer-alist
-               '("\\`\\*Embark Collect \\(Live\\|Completions\\)\\*"
-                 nil
-                 (window-parameters (mode-line-format . none)))))
-
-(use-package projectile
-  :after (ivy)
-  :init
-  (projectile-mode +1)
-  :custom
-  (projectile-indexing-method 'hybrid)
-  (projectile-enable-caching t)
-  :bind (:map projectile-mode-map
-              ("s-p" . projectile-command-map)
-              ("C-c p" . projectile-command-map))
-  :config
-  (setq frame-title-format `((buffer-file-name "%f" "%b") " [" (:eval (projectile-project-name)) "]")))
-
-(use-package counsel-projectile
-  :after (counsel projectile)
-  :init
-  (counsel-projectile-mode))
 
 (defun lma-ace-window (arg)
   (interactive "p")
@@ -344,66 +263,39 @@ Prepends by default, append by setting APPEND to non-nil."
   :bind (("M-o" . lma-ace-window)))
 
 (use-package which-key
-  :diminish
+  :custom
+  (which-key-idle-delay 0.5)
+  (which-key-idle-secondary-delay 0)
   :config
   (which-key-mode))
 
 (use-package sly
+  :ensure-system-package sbcl
   :config
   (setq sly-lisp-implementations
         `((sbcl (,(executable-find "sbcl") "--dynamic-space-size" "2048") :coding-system utf-8-unix))))
 
-(use-package sly-macrostep
-  :after sly
-  :config
-  (load "sly-macrostep-autoloads"))
-
-(use-package ag)
-
-(use-package rg)
-
-(use-package company
-  :after (ag rg)
-  :custom
-  (lsp-completion-provider :capf)
-  (company-tooltip-align-annotations t)
-  (company-dabbrev-downcase nil)
-  :hook ((ielm-mode prog-mode sly-mrepl-mode) . company-mode)
-  :bind (:map company-active-map
-              ("C-n" . company-select-next)
-              ("C-p" . company-select-previous)
-              ("C-d" . company-show-doc-buffer)
-              ("M-." . company-show-location)))
-
-;; (use-package eglot
-;;   :custom
-;;   (eglot-extend-to-xref t)
-;;   (eglot-confirm-server-initiated-edits nil))
-
-(use-package company-box
-  :after company
-  :hook (company-mode . company-box-mode))
+(use-package sly-macrostep)
 
 (use-package minions
   :config (minions-mode 1))
 
 (use-package magit
-  :bind (("C-x g" . magit-status))
-  :custom
-  (magit-git-executable (executable-find "git")))
+  :bind ("C-x g" . magit-status)
+  :ensure-system-package git)
 
 (use-package yaml-mode)
 
 (use-package multiple-cursors
-  :bind (("C-c m m" . #'mc/edit-lines)
-         ("C-c m d" . #'mc/mark-all-dwim)))
+  :bind (("C-c m m" . 'mc/edit-lines)
+         ("C-c m d" . 'mc/mark-all-dwim)))
 
 (use-package paredit
   :bind (:map lisp-mode-shared-map
-              ("RET" . paredit-newline))
-  :config
-  (define-key paredit-mode-map (kbd "RET") nil)
-  (define-key paredit-mode-map (kbd "C-j") 'paredit-newline)
+              ("RET" . paredit-newline)
+         :map paredit-mode-map
+              (("RET" . nil)
+               ("C-j" . paredit-newline)))
   :hook (((emacs-lisp-mode
            lisp-mode
            lisp-data-mode
@@ -434,112 +326,70 @@ Prepends by default, append by setting APPEND to non-nil."
   :config
   (editorconfig-mode 1))
 
-(use-package yasnippet
-  :config
-  (yas-global-mode))
-
-(use-package lsp-mode
+(use-package corfu
   :init
-  (setq lsp-keymap-prefix "C-c l")
-  :hook ((erlang-mode . lsp-deferred)
-         (lsp-mode . lsp-enable-which-key-integration))
+  (setq tab-always-indent 'complete)
+  (global-corfu-mode)
+  (corfu-popupinfo-mode)
+  :bind (:map corfu-map
+              ("RET" . nil))
   :custom
-  (lsp-lens-enable nil)
-  :commands lsp)
+  (corfu-popupinfo-delay 0.25))
 
-(use-package lsp-pyright
-  :hook (python-mode . (lambda ()
-                          (require 'lsp-pyright)
-                          (lsp-deferred))))
+;; (use-package vertico
+;;   :init
+;;   (vertico-mode))
+
+;; (use-package savehist
+;;   :init
+;;   (savehist-mode))
+
+(use-package eglot
+  :custom
+  (eglot-extend-to-xref t)
+  (eglot-autoshutdown t)
+  (eglot-report-progress 'messages))
+
+(defun project-save-buffers (&optional arg)
+  "Save modified file-visiting buffers of current project.
+Based on `save-some-buffers', refer to its documentation about interactive
+behavior and the optional argument ARG."
+  (interactive "P")
+  (save-excursion
+    (when-let* ((project (project-current))
+                (buffers (project-buffers project)))
+      (save-some-buffers arg
+                         (lambda ()
+                           (memq (current-buffer) buffers))))))
 
 (use-package ccls
   :hook ((c-mode c++-mode objc-mode cuda-mode) .
-         (lambda () (require 'ccls) (lsp-deferred))))
+         (lambda () (require 'ccls) (eglot-ensure))))
 
-(use-package google-c-style)
+(use-package google-c-style
+  :config
+  (c-add-style "Google" google-c-style)
+  (dolist (mode '(c-mode c++-mode))
+    (push `(,mode . "Google") c-default-style)))
 
 (use-package clang-format)
 
-(use-package lsp-ui
-  :after (lsp-mode)
-  :commands lsp-ui-mode
-  :bind (:map lsp-ui-mode-map
-              ([remap xref-find-definitions] . lsp-ui-peek-find-definitions)
-              ([remap xref-find-references] . lsp-ui-peek-find-references)
-              ("C-c u" . lsp-ui-imenu))
-  :init
-  (setq lsp-ui-doc-enable t
-        lsp-ui-doc-include-signature t
-        lsp-ui-peek-enable t
-        lsp-ui-peek-show-directory t
-        lsp-ui-sideline-update-mode 'line
-        lsp-ui-sideline-enable t
-        lsp-ui-sideline-show-code-actions t
-        lsp-ui-sideline-show-hover nil
-        lsp-ui-sideline-ignore-duplicate t)
-  :config
-  (add-to-list 'lsp-ui-doc-frame-parameters '(right-fringe . 8))
-
-  ;; `C-g'to close doc
-  (advice-add #'keyboard-quit :before #'lsp-ui-doc-hide)
-
-  ;; Reset `lsp-ui-doc-background' after loading theme
-  (add-hook 'after-load-theme-hook
-            (lambda ()
-              (setq lsp-ui-doc-border (face-foreground 'default))
-              (set-face-background 'lsp-ui-doc-background
-                                   (face-background 'tooltip)))))
-
-(use-package lsp-ivy :commands lsp-ivy-workspace-symbol)
-
 (use-package treemacs
-  :init
-  (with-eval-after-load 'winum
-    (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
   :config
-  (define-key treemacs-mode-map [drag-mouse-1] nil)
-  :hook (after-init . treemacs)
-  :bind (:map global-map
-              ("M-0"       . treemacs-select-window)
-              ("C-x t 1"   . treemacs-delete-other-windows)
-              ("C-x t t"   . treemacs)
-              ("C-x t d"   . treemacs-select-directory)
-              ("C-x t B"   . treemacs-bookmark)
-              ("C-x t C-t" . treemacs-find-file)
-              ("C-x t M-t" . treemacs-find-tag)))
+  ;; Disable dragging, too easy to move things around accidentally
+  (define-key treemacs-mode-map [drag-mouse-1] nil))
 
-(use-package lsp-treemacs
-  :after (treemacs lsp-mode)
-  :config
-  (lsp-treemacs-sync-mode 1))
-
-(use-package treemacs-magit
-  :after (treemacs magit))
+(use-package treemacs-magit)
 
 (use-package treemacs-icons-dired
   :hook (dired-mode . treemacs-icons-dired-enable-once))
 
-(use-package treemacs-projectile
-  :after (treemacs projectile))
+(use-package esup)
 
-(use-package esup
-  :config
-  ;; Work around a bug where esup tries to step into the byte-compiled
-  ;; version of `cl-lib', and fails horribly.
-  (setq esup-depth 0))
-
-(use-package gcmh
-  :custom
-  (gcmh-high-cons-threshold (* 2 1024 1024 1024))
-  :config
-  (gcmh-mode 1))
-
-;;; fix M-. (aka xref-find-definitions) in ielm
-(use-package ielm
-  :hook (ielm-mode . (lambda ()
-                       (add-hook 'xref-backend-functions #'elisp--xref-backend nil t))))
+(use-package gcmh)
 
 (use-package vterm
+  :ensure-system-package cmake
   :custom
   (vterm-always-compile-module t)
   (vterm-module-cmake-args "-DUSE_SYSTEM_LIBVTERM=no")
@@ -555,31 +405,11 @@ Prepends by default, append by setting APPEND to non-nil."
   :config
   (save-place-mode))
 
-(use-package osm
-  :bind (("C-c m h" . osm-home)
-   	 ("C-c m s" . osm-search)
-   	 ("C-c m v" . osm-server)
-   	 ("C-c m t" . osm-goto)
-   	 ("C-c m x" . osm-gpx-show)
-   	 ("C-c m j" . osm-bookmark-jump))
-  :init
-  ;; Load Org link support
-  (with-eval-after-load 'org
-    (require 'osm-ol)))
-
-(use-package minimap
-  :custom
-  (minimap-window-location 'right))
-
 (use-package cmake-mode)
-
-(use-package default-text-scale)
 
 (load "~/.emacs.d/site-config" 'noerror)
 
 (server-start)
 
 (provide 'init)
-
-(put 'scroll-left 'disabled nil)
 
