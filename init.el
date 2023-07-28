@@ -18,7 +18,10 @@
     (package-refresh-contents)
     (package-install 'use-package))
 
-  (setq use-package-always-ensure t))
+  (require 'use-package)
+
+  (setq use-package-always-ensure t
+        use-package-compute-statistics t))
 
 (use-package no-littering
   :config
@@ -26,23 +29,29 @@
         custom-file (no-littering-expand-etc-file-name "custom.el"))
   (load custom-file 'noerror 'nomessage))
 
-(use-package ef-themes
-  :config
-  (load-theme 'ef-spring t))
+(defvar *think-different* (eq system-type 'darwin))
+(defvar *homebrew-coreutils-gnubin* "/usr/local/opt/coreutils/libexec/gnubin")
 
-(when (find-font (font-spec :family "Iosevka Term"))
-  (set-face-attribute 'default nil :font "Iosevka Term-16"))
+(let ((inhibit-redisplay t))
+  (tool-bar-mode -1)
+  (scroll-bar-mode -1)
 
-(use-package use-package-ensure-system-package)
+  (when (and (display-graphic-p) (not *think-different*))
+    (menu-bar-mode -1))
 
-(use-package gnu-elpa-keyring-update)
+  (when-let ((font (find-font (font-spec :family "Iosevka Term"))))
+    (set-face-attribute 'default nil :font font :height 160))
 
-;;; Contrary to what many Emacs users have in their configs, you don't need
-;;; more than this to make UTF-8 the default coding system:
-(set-language-environment "UTF-8")
+  (when *think-different*
+    ;; Make emojis work
+    (set-fontset-font "fontset-default" 'unicode "Apple Color Emoji" nil 'prepend))
 
-;;; set-language-environment sets default-input-method, which is unwanted
-(setq default-input-method nil)
+  (use-package ef-themes
+    :config
+    (load-theme 'ef-spring t)))
+
+;;; no blinky
+(blink-cursor-mode -1)
 
 (setq inhibit-startup-screen t
       sentence-end-double-space nil
@@ -55,42 +64,52 @@
       dired-dwim-target t
       make-backup-files nil)
 
-(bind-key "s-[" 'previous-window-any-frame)
-(bind-key "s-]" 'next-window-any-frame)
-
-;;; no blinky
-(blink-cursor-mode -1)
-
 ;;; Work around mutter being stupid when it comes to resizes
 (setq x-gtk-resize-child-frames 'hide)
 
-;;; Always reload unchanged buffers if the underlying file changes on disk
-(global-auto-revert-mode t)
+;;; Contrary to what many Emacs users have in their configs, you don't need
+;;; more than this to make UTF-8 the default coding system:
+(set-language-environment "UTF-8")
+
+;;; set-language-environment sets default-input-method, which is unwanted
+(setq default-input-method nil)
 
 ;;; never mix tabs and spaces. Never use tabs, period.
-;;; We need the setq-default here because this becomes
-;;; a buffer-local variable when set.
-(setq-default indent-tabs-mode nil)
+(customize-set-variable 'indent-tabs-mode nil)
+
+;;; Always reload unchanged buffers if the underlying file changes on disk
+(use-package autorevert
+  :hook (after-init . global-auto-revert-mode))
 
 ;;; Show column in modeline
 (column-number-mode)
 
 ;;; highlight current line in prog and text modes
-(dolist (hook '(prog-mode-hook text-mode-hook))
-  (add-hook hook 'hl-line-mode))
+(use-package hl-line
+  :hook ((text-mode prog-mode) . hl-line-mode))
 
 ;;; Line numbers in some modes by default
-(dolist (hook '(text-mode-hook prog-mode-hook))
-  (add-hook hook 'display-line-numbers-mode))
+(use-package display-line-numbers
+  :hook ((text-mode prog-mode) . display-line-numbers-mode))
 
 ;;; Make links clickable
-(global-goto-address-mode)
-
-(tool-bar-mode -1)
-(scroll-bar-mode -1)
+(use-package goto-addr
+  :hook (after-init . global-goto-address-mode))
 
 ;;; Some utility functions
 (progn
+  (defun project-save-buffers (&optional arg)
+    "Save modified file-visiting buffers of current project.
+Based on `save-some-buffers', refer to its documentation about interactive
+behavior and the optional argument ARG."
+    (interactive "P")
+    (save-excursion
+      (when-let* ((project (project-current))
+                  (buffers (project-buffers project))
+                  (predicate (lambda ()
+                               (memq (current-buffer) buffers))))
+        (save-some-buffers arg predicate))))
+  
   (cl-defun add-to-path (p &optional (append nil))
     "Add P to path variables: exec-path eshell-path-env $PATH.
 
@@ -122,38 +141,10 @@ Prepends by default, append by setting APPEND to non-nil."
       (while (< (current-column) width)
         (insert-char char)))))
 
-;;; macOS specials
-(defvar *think-different* (eq system-type 'darwin))
-(defvar *homebrew-coreutils-gnubin* "/usr/local/opt/coreutils/libexec/gnubin")
-
-(when *think-different*
-  ;; Make emojis work
-  (set-fontset-font "fontset-default" 'unicode "Apple Color Emoji" nil 'prepend)
-  ;; Too close to M-o and not needed
-  (unbind-key "s-o"))
-
-(bind-key (if *think-different* "s-w" "C-w") 'kill-this-buffer)
-
-;;; Annoying shortcut to suspend-frame
-(when (display-graphic-p)
-    (unbind-key "C-z"))
-
-(menu-bar-mode (if *think-different* 1 0))
-
-(add-hook 'ielm-mode-hook
- (lambda ()
-   (add-hook 'xref-backend-functions 'elisp--xref-backend nil t)))
-
-(use-package ns-auto-titlebar
-  :config
-  (ns-auto-titlebar-mode)
-  (setq ns-use-proxy-icon nil))
-
-(use-package exec-path-from-shell
-  :config
-  (exec-path-from-shell-initialize)
-  (when *think-different*
-    (add-to-path *homebrew-coreutils-gnubin*)))
+(use-package ielm
+  :defer t
+  :hook (ielm-mode . (lambda ()
+                       (add-hook 'xref-backend-functions 'elisp--xref-backend nil t))))
 
 ;;; Custom github bits and pieces
 (progn
@@ -215,7 +206,33 @@ Prepends by default, append by setting APPEND to non-nil."
           (when (zerop exit-code)
             output))))))
 
+(use-package bind-key
+  :config
+  ;; Too close to M-o and not needed
+  (unbind-key "s-o")
+  ;; Annoying shortcut to suspend-frame
+  (when (display-graphic-p)
+    (unbind-key "C-z"))
+  (bind-keys
+   ((if *think-different* "s-w" "C-w") . kill-this-buffer)
+   ("s-[" . previous-window-any-frame)
+   ("s-]" . next-window-any-frame)))
+
+(use-package gnu-elpa-keyring-update)
+
+(use-package ns-auto-titlebar
+  :config
+  (ns-auto-titlebar-mode)
+  (setq ns-use-proxy-icon nil))
+
+(use-package exec-path-from-shell
+  :config
+  (exec-path-from-shell-initialize)
+  (when *think-different*
+    (add-to-path *homebrew-coreutils-gnubin*)))
+
 (use-package logview
+  :defer t
   :custom-face
   (logview-error-entry ((t (:inherit error))))
   (logview-warning-entry ((t (:inherit warning))))
@@ -226,10 +243,11 @@ Prepends by default, append by setting APPEND to non-nil."
   :custom
   (org-startup-indented t)
   (org-adapt-indentation t)
-  :config
-  ;; load more export backends
-  (dolist (backend '(ox-beamer ox-md))
-    (require backend)))
+  :defer t
+  :hook (org-mode . (lambda ()
+                      ;; load more export backends
+                      (require 'ox-beamer)
+                      (require 'ox-md))))
 
 (use-package beacon
   :config
@@ -266,34 +284,37 @@ Prepends by default, append by setting APPEND to non-nil."
   :custom
   (which-key-idle-delay 0.5)
   (which-key-idle-secondary-delay 0)
-  :config
-  (which-key-mode))
+  :hook (after-init . which-key-mode))
 
 (use-package sly
-  :ensure-system-package sbcl
+  :defer t
   :config
   (setq sly-lisp-implementations
         `((sbcl (,(executable-find "sbcl") "--dynamic-space-size" "2048") :coding-system utf-8-unix))))
 
-(use-package sly-macrostep)
+(use-package sly-macrostep
+  :after sly)
 
 (use-package minions
   :config (minions-mode 1))
 
 (use-package magit
-  :bind ("C-x g" . magit-status)
-  :ensure-system-package git)
+  :bind ("C-x g" . magit-status))
 
 (use-package yaml-mode)
 
 (use-package multiple-cursors
-  :bind (("C-c m m" . 'mc/edit-lines)
-         ("C-c m d" . 'mc/mark-all-dwim)))
+  :defer t
+  :bind (:prefix-map multiple-cursors-map
+                     :prefix "C-c m"
+                     :prefix-docstring "multiple cursors"
+                     ("m" . 'mc/edit-lines)
+                     ("d" . 'mc/mark-all-dwim)))
 
 (use-package paredit
   :bind (:map lisp-mode-shared-map
               ("RET" . paredit-newline)
-         :map paredit-mode-map
+              :map paredit-mode-map
               (("RET" . nil)
                ("C-j" . paredit-newline)))
   :hook (((emacs-lisp-mode
@@ -320,11 +341,11 @@ Prepends by default, append by setting APPEND to non-nil."
   :config
   (show-paren-mode 1))
 
-(use-package erlang)
+(use-package erlang
+  :defer t)
 
 (use-package editorconfig
-  :config
-  (editorconfig-mode 1))
+  :hook (find-file . editorconfig-mode))
 
 (use-package corfu
   :init
@@ -336,60 +357,109 @@ Prepends by default, append by setting APPEND to non-nil."
   :custom
   (corfu-popupinfo-delay 0.25))
 
-;; (use-package vertico
-;;   :init
-;;   (vertico-mode))
+(use-package vertico
+  :init
+  (vertico-mode))
 
-;; (use-package savehist
-;;   :init
-;;   (savehist-mode))
+(use-package vertico-directory
+  :after vertico
+  :ensure nil
+  ;; More convenient directory navigation commands
+  :bind (:map vertico-map
+              ("RET" . vertico-directory-enter)
+              ("DEL" . vertico-directory-delete-char)
+              ("M-DEL" . vertico-directory-delete-word))
+  ;; Tidy shadowed file names
+  :hook (rfn-eshadow-update-overlay . vertico-directory-tidy))
+
+(use-package consult
+  :bind (([remap isearch-forward] . consult-line)
+         ([remap isearch-backward] . consult-line)
+         ([remap switch-to-buffer] . consult-buffer)
+         ([remap goto-line] . consult-goto-line)
+         ([remap yank-pop] . consult-yank-pop)
+         ([remap project-switch-to-buffer] . consult-project-buffer))
+  :hook (completion-list-mode . consult-preview-at-point-mode)
+  :init
+  (setq xref-show-xrefs-function #'consult-xref
+        xref-show-definitions-function #'consult-xref))
+
+(use-package orderless
+  :init
+  ;; Configure a custom style dispatcher (see the Consult wiki)
+  ;; (setq orderless-style-dispatchers '(+orderless-consult-dispatch orderless-affix-dispatch)
+  ;;       orderless-component-separator #'orderless-escapable-split-on-space)
+  (setq completion-styles '(orderless basic)
+        completion-category-defaults nil
+        completion-category-overrides '((file (styles partial-completion)))))
+
+(use-package emacs
+  :init
+  ;; Add prompt indicator to `completing-read-multiple'.
+  ;; We display [CRM<separator>], e.g., [CRM,] if the separator is a comma.
+  (defun crm-indicator (args)
+    (cons (format "[CRM%s] %s"
+                  (replace-regexp-in-string
+                   "\\`\\[.*?]\\*\\|\\[.*?]\\*\\'" ""
+                   crm-separator)
+                  (car args))
+          (cdr args)))
+  (advice-add #'completing-read-multiple :filter-args #'crm-indicator)
+
+  ;; Do not allow the cursor in the minibuffer prompt
+  (setq minibuffer-prompt-properties
+        '(read-only t cursor-intangible t face minibuffer-prompt))
+  (add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
+
+  ;; Hide commands in M-x which do not work in the current mode.
+  ;; Vertico commands are hidden in normal buffers.
+  (setq read-extended-command-predicate
+        #'command-completion-default-include-p)
+
+  ;; Enable recursive minibuffers
+  (setq enable-recursive-minibuffers t))
+
+(use-package savehist
+  :init
+  (savehist-mode))
 
 (use-package eglot
+  :defer t
   :custom
   (eglot-extend-to-xref t)
   (eglot-autoshutdown t)
-  (eglot-report-progress 'messages))
-
-(defun project-save-buffers (&optional arg)
-  "Save modified file-visiting buffers of current project.
-Based on `save-some-buffers', refer to its documentation about interactive
-behavior and the optional argument ARG."
-  (interactive "P")
-  (save-excursion
-    (when-let* ((project (project-current))
-                (buffers (project-buffers project)))
-      (save-some-buffers arg
-                         (lambda ()
-                           (memq (current-buffer) buffers))))))
-
-(use-package ccls
-  :hook ((c-mode c++-mode objc-mode cuda-mode) .
-         (lambda () (require 'ccls) (eglot-ensure))))
+  (eglot-report-progress 'messages)
+  :config
+  (add-to-list 'eglot-server-programs
+               `((c-mode c-ts-mode c++-mode c++-ts-mode)
+                 . ,(eglot-alternatives
+                     '("ccls" "clangd")))))
 
 (use-package google-c-style
-  :config
-  (c-add-style "Google" google-c-style)
-  (dolist (mode '(c-mode c++-mode))
-    (push `(,mode . "Google") c-default-style)))
+  :hook (c-mode-common . google-set-c-style))
 
-(use-package clang-format)
+(use-package clang-format
+  :defer t)
 
 (use-package treemacs
-  :config
-  ;; Disable dragging, too easy to move things around accidentally
-  (define-key treemacs-mode-map [drag-mouse-1] nil))
+  :defer t
+  :bind (:map treemacs-mode-map
+         ;; Disable dragging, too easy to do things accidentally
+         ([drag-mouse-1] . nil)))
 
-(use-package treemacs-magit)
+(use-package treemacs-magit
+  :after (treemacs magit))
 
 (use-package treemacs-icons-dired
   :hook (dired-mode . treemacs-icons-dired-enable-once))
 
-(use-package esup)
+(use-package esup
+  :defer t)
 
 (use-package gcmh)
 
 (use-package vterm
-  :ensure-system-package cmake
+  :defer t
   :custom
   (vterm-always-compile-module t)
   (vterm-module-cmake-args "-DUSE_SYSTEM_LIBVTERM=no")
@@ -397,6 +467,7 @@ behavior and the optional argument ARG."
   (vterm-copy-mode-remove-fake-newlines t))
 
 (use-package with-editor
+  :defer t
   :hook ((shell-mode eshell-mode term-exec vterm-mode) . 'with-editor-export-editor)
   :bind (([remap async-shell-command] . 'with-editor-async-shell-command)
          ([remap shell-command] . 'with-editor-shell-command)))
@@ -405,7 +476,8 @@ behavior and the optional argument ARG."
   :config
   (save-place-mode))
 
-(use-package cmake-mode)
+(use-package cmake-mode
+  :defer t)
 
 (load "~/.emacs.d/site-config" 'noerror)
 

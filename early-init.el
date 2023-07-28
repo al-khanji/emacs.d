@@ -37,6 +37,8 @@
 
 ;; End stuff copied from Doom Emacs
 
+(setq package-enable-at-startup nil)
+
 (let ((gc-cons-threshold-original gc-cons-threshold))
   (setq gc-cons-threshold most-positive-fixnum)
   (add-hook 'after-init-hook
