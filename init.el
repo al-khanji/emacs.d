@@ -32,6 +32,11 @@
 (defvar *think-different* (eq system-type 'darwin))
 (defvar *homebrew-coreutils-gnubin* "/usr/local/opt/coreutils/libexec/gnubin")
 
+(defun lma/set-font (family height &optional slant)
+  (setq slant (or slant 'normal))
+  (when-let ((font (find-font (font-spec :family family :slant slant))))
+    (set-face-attribute 'default nil :font font :height height)))
+
 (let ((inhibit-redisplay t))
   (tool-bar-mode -1)
   (scroll-bar-mode -1)
@@ -39,8 +44,7 @@
   (when (and (display-graphic-p) (not *think-different*))
     (menu-bar-mode -1))
 
-  (when-let ((font (find-font (font-spec :family "Iosevka Term"))))
-    (set-face-attribute 'default nil :font font :height 160))
+  (lma/set-font "Iosevka Term" 160)
 
   (when *think-different*
     ;; Make emojis work
