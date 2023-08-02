@@ -39,13 +39,6 @@
 
 (setq package-enable-at-startup nil)
 
-(let ((gc-cons-threshold-original gc-cons-threshold))
-  (setq gc-cons-threshold most-positive-fixnum)
-  (add-hook 'after-init-hook
-            (lambda ()
-              (setq gc-cons-threshold gc-cons-threshold-original)
-              (when (package-installed-p 'gcmh)
-                (gcmh-mode 1)))))
 (defun lma/print-startup-time ()
   (message "Emacs loaded in %f seconds with %d gcs."
            (float-time (time-subtract after-init-time before-init-time))
@@ -53,6 +46,16 @@
 
 (add-hook 'after-init-hook 'lma/print-startup-time)
 
+(defun lma/configure-gc ()
+  (let ((original-gc-cons-threshold gc-cons-threshold)
+        (hook-fn (lambda ()
+                   (cond
+                    ((require 'gcmh nil 'noerror) (gcmh-mode 1))
+                    (t (setq gc-cons-threshold original-gc-cons-threshold))))))
+    (add-hook 'after-init-hook hook-fn)
+    (setq gc-cons-threshold most-positive-fixnum)))
+
+(lma/configure-gc)
 
 (modify-all-frames-parameters '((width . 0.7)
                                 (height . 0.7)
