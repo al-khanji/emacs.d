@@ -46,6 +46,13 @@
               (setq gc-cons-threshold gc-cons-threshold-original)
               (when (package-installed-p 'gcmh)
                 (gcmh-mode 1)))))
+(defun lma/print-startup-time ()
+  (message "Emacs loaded in %f seconds with %d gcs."
+           (float-time (time-subtract after-init-time before-init-time))
+           gcs-done))
+
+(add-hook 'after-init-hook 'lma/print-startup-time)
+
 
 (modify-all-frames-parameters '((width . 0.7)
                                 (height . 0.7)
