@@ -213,8 +213,9 @@ Prepends by default, append by setting APPEND to non-nil."
   ;; Annoying shortcut to suspend-frame
   (when (display-graphic-p)
     (unbind-key "C-z"))
+  (when *think-different*
+    (bind-key "s-w" 'kill-this-buffer))
   (bind-keys
-   ((if *think-different* "s-w" "C-w") . kill-this-buffer)
    ("s-[" . previous-window-any-frame)
    ("s-]" . next-window-any-frame)))
 
