@@ -254,14 +254,6 @@ Prepends by default, append by setting APPEND to non-nil."
                       (require 'ox-beamer)
                       (require 'ox-md))))
 
-(use-package beacon
-  :config
-  (beacon-mode 1)
-  :custom
-  (beacon-blink-when-focused t)
-  (beacon-blink-when-point-moves-vertically 5)
-  (beacon-blink-when-point-moves-horizontally 20))
-
 (use-package marginalia
   :bind ("M-A" . marginalia-cycle)
   :init
