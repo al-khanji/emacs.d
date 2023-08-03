@@ -267,6 +267,9 @@ Prepends by default, append by setting APPEND to non-nil."
   :init
   (marginalia-mode))
 
+(recentf-mode)
+(add-hook 'buffer-list-update-hook 'recentf-track-opened-file)
+
 (defun lma-ace-window (arg)
   (interactive "p")
   (cl-case arg
