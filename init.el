@@ -441,10 +441,12 @@ Prepends by default, append by setting APPEND to non-nil."
   (add-to-list 'eglot-server-programs
                `((c-mode c-ts-mode c++-mode c++-ts-mode)
                  . ,(eglot-alternatives
-                     '("ccls" "clangd")))))
+                     '("ccls" "clangd"))))
+  :hook ((c-mode c++-mode erlang-mode python-mode) . eglot-ensure))
 
 (use-package google-c-style
-  :hook (c-mode-common . google-set-c-style))
+  :hook (c-mode-common . (lambda ()
+                           (c-add-style "Google" google-c-style t))))
 
 (use-package clang-format
   :defer t)
