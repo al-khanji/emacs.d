@@ -469,6 +469,7 @@ Prepends by default, append by setting APPEND to non-nil."
 (use-package vterm
   :defer t
   :custom
+  (vterm-kill-buffer-on-exit nil)
   (vterm-always-compile-module t)
   (vterm-module-cmake-args "-DUSE_SYSTEM_LIBVTERM=no")
   (vterm-buffer-name-string "vterm %s")
