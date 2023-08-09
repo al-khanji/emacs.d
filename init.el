@@ -482,6 +482,9 @@ Prepends by default, append by setting APPEND to non-nil."
 (use-package cmake-mode
   :defer t)
 
+(use-package dirvish
+  :defer t)
+
 (load "~/.emacs.d/site-config" 'noerror 'nomessage)
 
 (server-start)
