@@ -286,14 +286,23 @@ Prepends by default, append by setting APPEND to non-nil."
   (which-key-idle-secondary-delay 0)
   :hook (after-init . which-key-mode))
 
-(use-package sly
+(use-package slime
   :defer t
+  :custom
+  (slime-net-coding-system 'utf-8-unix)
   :config
-  (setq sly-lisp-implementations
-        `((sbcl (,(executable-find "sbcl") "--dynamic-space-size" "2048") :coding-system utf-8-unix))))
+  (add-to-list 'slime-lisp-implementations
+               `(sbcl ("sbcl") :coding-system ,slime-net-coding-system)))
 
-(use-package sly-macrostep
-  :after sly)
+(use-package slime-company
+  :after (cape slime)
+  :config
+  (defvar *slime-capf-function* (cape-company-to-capf #'company-slime))
+  :hook ((slime-mode slime-repl-mode) . (lambda ()
+                                          (add-hook 'completion-at-point-functions
+                                                    *slime-capf-function*
+                                                    nil
+                                                    'local))))
 
 (use-package minions
   :config (minions-mode 1))
@@ -356,6 +365,12 @@ Prepends by default, append by setting APPEND to non-nil."
               ("RET" . nil))
   :custom
   (corfu-popupinfo-delay 0.25))
+
+(use-package cape
+  :init
+  (add-to-list 'completion-at-point-functions #'cape-dabbrev)
+  (add-to-list 'completion-at-point-functions #'cape-file)
+  (add-to-list 'completion-at-point-functions #'cape-elisp-block))
 
 (use-package vertico
   :init
@@ -427,13 +442,6 @@ Prepends by default, append by setting APPEND to non-nil."
   :defer t
   :custom
   (eglot-extend-to-xref t)
-  (eglot-autoshutdown t)
-  (eglot-report-progress 'messages)
-  :config
-  (add-to-list 'eglot-server-programs
-               `((c-mode c-ts-mode c++-mode c++-ts-mode)
-                 . ,(eglot-alternatives
-                     '("ccls" "clangd"))))
   :hook ((c-mode c++-mode erlang-mode python-mode) . eglot-ensure))
 
 (use-package google-c-style
