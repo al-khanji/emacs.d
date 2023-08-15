@@ -1,50 +1,30 @@
 ;;;; init.el -*- lexical-binding: t; -*-
 
-(require 'cl-lib)
-(require 'eshell)
 (require 'dired-x)
 
-;;; basic package setup
-(progn
-  (require 'package)
-  (dolist (package-archive '(("melpa" . "https://melpa.org/packages/")
-                             ("gnu" . "https://elpa.gnu.org/packages/")
-                             ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
-    (add-to-list 'package-archives package-archive))
-
-  (package-initialize)
-
-  (unless (package-installed-p 'use-package)
-    (package-refresh-contents)
-    (package-install 'use-package))
-
-  (require 'use-package)
-
-  (setq use-package-always-ensure t
-        use-package-compute-statistics t))
-
-(use-package no-littering
-  :config
-  (setq auto-save-file-name-transforms `((".*" ,(no-littering-expand-var-file-name "auto-save/") t))
-        custom-file (no-littering-expand-etc-file-name "custom.el"))
-  (load custom-file 'noerror 'nomessage))
-
-(defvar *think-different* (eq system-type 'darwin))
-(defvar *homebrew-coreutils-gnubin* "/usr/local/opt/coreutils/libexec/gnubin")
-
-(defun lma/set-font (family height &optional slant)
-  (setq slant (or slant 'normal))
-  (when-let ((font (find-font (font-spec :family family :slant slant))))
-    (set-face-attribute 'default nil :font font :height height)))
+(defvar *default-font-name* "Iosevka Term")
+(defvar *default-font-size* 160)
+(defvar *auto-save-dir-name* "auto-save/")
+(defvar *custom-file-name* "custom.el")
 
 (let ((inhibit-redisplay t))
+  (load (expand-file-name "lma-lib" user-emacs-directory) nil 'nomessage)
+
+  (lma/init-use-package)
+
+  (use-package no-littering
+    :config
+    (setq auto-save-file-name-transforms `((".*" ,(no-littering-expand-var-file-name *auto-save-dir-name*) t))
+          custom-file (no-littering-expand-etc-file-name *custom-file-name*))
+    (load custom-file 'noerror 'nomessage))
+
   (tool-bar-mode -1)
   (scroll-bar-mode -1)
 
   (when (and (display-graphic-p) (not *think-different*))
     (menu-bar-mode -1))
 
-  (lma/set-font "Iosevka Term" 160)
+  (lma/set-font *default-font-name* *default-font-size*)
 
   (when *think-different*
     ;; Make emojis work
@@ -54,161 +34,74 @@
     :config
     (load-theme 'ef-spring t)))
 
-;;; no blinky
-(blink-cursor-mode -1)
+(use-package emacs
+  :init
+  ;; Add prompt indicator to `completing-read-multiple'.
+  ;; We display [CRM<separator>], e.g., [CRM,] if the separator is a comma.
+  (defun crm-indicator (args)
+    (cons (format "[CRM%s] %s"
+                  (replace-regexp-in-string
+                   "\\`\\[.*?]\\*\\|\\[.*?]\\*\\'" ""
+                   crm-separator)
+                  (car args))
+          (cdr args)))
+  (advice-add #'completing-read-multiple :filter-args #'crm-indicator)
 
-(setq inhibit-startup-screen t
-      sentence-end-double-space nil
-      ring-bell-function 'ignore
-      visible-bell t
-      use-dialog-box nil
-      create-lockfiles nil
-      compilation-scroll-output t
-      native-comp-async-report-warnings-errors 'silent
-      dired-dwim-target t
-      make-backup-files nil)
+  ;; Do not allow the cursor in the minibuffer prompt
+  (setq minibuffer-prompt-properties
+        '(read-only t cursor-intangible t face minibuffer-prompt))
+  (add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
 
-;;; Work around mutter being stupid when it comes to resizes
-(setq x-gtk-resize-child-frames 'hide)
+  ;; Hide commands in M-x which do not work in the current mode.
+  ;; Vertico commands are hidden in normal buffers.
+  (setq read-extended-command-predicate
+        #'command-completion-default-include-p)
 
-;;; Contrary to what many Emacs users have in their configs, you don't need
-;;; more than this to make UTF-8 the default coding system:
-(set-language-environment "UTF-8")
+  ;; Enable recursive minibuffers
+  (setq enable-recursive-minibuffers t)
 
-;;; set-language-environment sets default-input-method, which is unwanted
-(setq default-input-method nil)
+  ;; recentf-mode reads some files on startup, delay it for later
+  (add-hook 'after-init-hook
+            (lambda ()
+              (recentf-mode)
+              (add-hook 'buffer-list-update-hook
+                        'recentf-track-opened-file)))
 
-;;; never mix tabs and spaces. Never use tabs, period.
-(customize-set-variable 'indent-tabs-mode nil)
+  ;; no blinky
+  (blink-cursor-mode -1)
 
-;;; Always reload unchanged buffers if the underlying file changes on disk
-(use-package autorevert
-  :hook (after-init . global-auto-revert-mode))
+  (setq inhibit-startup-screen t        ; no startup screen
+        sentence-end-double-space nil   ; one space only thx
+        ring-bell-function 'ignore      ; no audible bell
+        visible-bell t                  ; yes visible bell
+        use-dialog-box nil              ; no dialog boxes
+        create-lockfiles nil            ; no lock files
+        native-comp-async-report-warnings-errors 'silent  ; silence the deluge
+        dired-dwim-target t             ; come on dired
+        make-backup-files nil           ; no backup files
+        )
 
-;;; Show column in modeline
-(column-number-mode)
+  ;; Work around mutter being stupid when it comes to resizes
+  (setq x-gtk-resize-child-frames 'hide)
 
-;;; highlight current line in prog and text modes
-(use-package hl-line
-  :hook ((text-mode prog-mode) . hl-line-mode))
+  ;; Contrary to what many Emacs users have in their configs, you don't need
+  ;; more than this to make UTF-8 the default coding system:
+  (set-language-environment "UTF-8")
 
-;;; Line numbers in some modes by default
-(use-package display-line-numbers
-  :hook ((text-mode prog-mode) . display-line-numbers-mode))
+  ;; set-language-environment sets default-input-method, which is unwanted
+  (setq default-input-method nil)
 
-;;; Make links clickable
-(use-package goto-addr
-  :hook (after-init . global-goto-address-mode))
+  ;; never mix tabs and spaces. Never use tabs, period.
+  (customize-set-variable 'indent-tabs-mode nil)
 
-;;; Some utility functions
-(progn
-  (defun project-save-buffers (&optional arg)
-    "Save modified file-visiting buffers of current project.
-Based on `save-some-buffers', refer to its documentation about interactive
-behavior and the optional argument ARG."
-    (interactive "P")
-    (save-excursion
-      (when-let* ((project (project-current))
-                  (buffers (project-buffers project))
-                  (predicate (lambda ()
-                               (memq (current-buffer) buffers))))
-        (save-some-buffers arg predicate))))
-  
-  (cl-defun add-to-path (p &optional (append nil))
-    "Add P to path variables: exec-path eshell-path-env $PATH.
+  ;; Show column in modeline
+  (column-number-mode)
 
-Prepends by default, append by setting APPEND to non-nil."
-    (interactive "GDirectory: \nP")
+  ;; Make `apropos' et co search more extensively. They're more useful this way.
+  (setq apropos-do-all t)
 
-    (add-to-list 'exec-path p append)
-    (let ((new-paths (string-join (append (unless append
-                                            (list p))
-                                          (eshell-get-path)
-                                          (when append
-                                            (list p)))
-                                  path-separator)))
-      (setq-default eshell-path-env new-paths)
-      (setenv "PATH" new-paths)))
-
-  (defun package-find-reqs (pkg)
-    "Looks up the requirements for PKG from PACKAGE-ARCHIVE-CONTENTS.
-
- Returns a list of tuples (NAME VERSION) if found, otherwise nil. "
-    (pcase (assoc pkg package-archive-contents)
-      (`(,name ,desc) (package-desc-reqs desc))))
-
-  (cl-defun fill-line (char &optional (width fill-column))
-    (interactive "cFill character: \nP")
-    (message "filling %c to column %d" char width)
-    (save-excursion
-      (end-of-line)
-      (while (< (current-column) width)
-        (insert-char char)))))
-
-(use-package ielm
-  :defer t
-  :hook (ielm-mode . (lambda ()
-                       (add-hook 'xref-backend-functions 'elisp--xref-backend nil t))))
-
-;;; Custom github bits and pieces
-(progn
-  (defvar *local-github-dir* (expand-file-name "~/github"))
-  (defvar *github-urls* '((:https "https://github.com/")
-                          (:ssl "git@github.com:")))
-  (defvar *git-config-alist* '(("core.autocrlf" . "input")
-                               ("rebase.stat" . "true")
-                               ("color.ui" . "auto")
-                               ("core.pager" . "\"less -FRSX\"")
-                               ("alias.di" . "diff")
-                               ("alias.ci" . "commit")
-                               ("alias.co" . "checkout")
-                               ("alias.ann" . "blame")
-                               ("alias.st" . "status")))
-
-  (cl-defun config-my-git (&optional (config-alist *git-config-alist*))
-    (interactive)
-    (when (executable-find "git")
-      (pcase-dolist (`(,k . ,v) config-alist)
-        (shell-command (format "git config --global %s %s" k v)))))
-
-  (defun local-github-subdir (dir)
-    (expand-file-name dir *local-github-dir*))
-
-  (defun github-clone (repo &optional arg)
-    (interactive "sRepository: \nP")
-    (pcase-let* ((scheme (if arg :ssl :https))
-                 (`(,scheme ,url) (assoc scheme *github-urls*))
-                 (`(,owner ,project) (split-string repo "/"))
-                 (src (concat url repo ".git"))
-                 (dst (local-github-subdir owner)))
-      (message "github-clone %s -> %s" src dst)
-      (magit-clone-regular src dst nil))))
-
-;;; Erlang stuff
-(progn
-  (defvar *erlang-binary* (executable-find "erl"))
-
-  (defun erl-eval-print (expr)
-    (interactive "sErlang expression: ")
-    (catch 'no-erl
-      (unless (and (stringp *erlang-binary*)
-                   (executable-find *erlang-binary*))
-        (when (called-interactively-p 'any)
-          (message (format "bad *erlang-binary* => %s" *erlang-binary*)))
-        (throw 'no-erl nil))
-      (with-temp-buffer
-        (let* ((printable-filter-fn (concat "fun (F) when is_float(F) -> erlang:float_to_binary(F);"
-                                            "    (I) when is_integer(I) -> erlang:integer_to_binary(I);"
-                                            "    (X) -> X end"))
-               (apply-printable-expr (format "erlang:apply(%s, [%s])" printable-filter-fn expr))
-               (eval-str (format "io:format(\"~s\", [%s])" apply-printable-expr))
-               (exit-code (call-process *erlang-binary* nil (current-buffer) nil
-                                        "-noinput" "-eval" eval-str "-s" "erlang" "halt" "-env" "ERL_CRASH_DUMP" "/dev/null"))
-               (output (buffer-string)))
-          (when (called-interactively-p 'any)
-            (message output))
-          (when (zerop exit-code)
-            output))))))
+  ;; Print some startup statistics
+  (add-hook 'after-init-hook 'lma/print-startup-time 100))
 
 (use-package bind-key
   :config
@@ -223,6 +116,28 @@ Prepends by default, append by setting APPEND to non-nil."
    ("s-[" . previous-window-any-frame)
    ("s-]" . next-window-any-frame)))
 
+;;; Always reload unchanged buffers if the underlying file changes on disk
+(use-package autorevert
+  :hook (after-init . global-auto-revert-mode))
+
+;;; highlight current line in prog and text modes
+(use-package hl-line
+  :hook ((text-mode prog-mode) . hl-line-mode))
+
+;;; Line numbers in some modes by default
+(use-package display-line-numbers
+  :hook ((text-mode prog-mode) . display-line-numbers-mode))
+
+;;; Make links clickable
+(use-package goto-addr
+  :hook (after-init . global-goto-address-mode))
+
+;;; Fix ielm xref
+(use-package ielm
+  :defer t
+  :hook (ielm-mode . (lambda ()
+                       (add-hook 'xref-backend-functions 'elisp--xref-backend nil t))))
+
 (use-package gnu-elpa-keyring-update)
 
 (use-package ns-auto-titlebar
@@ -233,8 +148,9 @@ Prepends by default, append by setting APPEND to non-nil."
 (use-package exec-path-from-shell
   :config
   (exec-path-from-shell-initialize)
+  (defvar *homebrew-coreutils-gnubin* "/usr/local/opt/coreutils/libexec/gnubin")
   (when *think-different*
-    (add-to-path *homebrew-coreutils-gnubin*)))
+    (lma/add-to-path *homebrew-coreutils-gnubin*)))
 
 (use-package logview
   :defer t
@@ -259,26 +175,23 @@ Prepends by default, append by setting APPEND to non-nil."
   :init
   (marginalia-mode))
 
-(recentf-mode)
-(add-hook 'buffer-list-update-hook 'recentf-track-opened-file)
-
-(defun lma-ace-window (arg)
-  (interactive "p")
-  (cl-case arg
-    ;; Move buffer to target window, select target window, delete old window
-    (64 (aw-select " Move buffer to window killing old window"
-                   (lambda (window)
-                     (let* ((buffer (current-buffer))
-                            (old-window (selected-window)))
-                       (set-window-buffer window buffer)
-                       (select-window window)
-                       (delete-window old-window)))))
-    (t (ace-window arg))))
-
 (use-package ace-window
   :custom
   (aw-swap-invert t)
-  :bind (("M-o" . lma-ace-window)))
+  :config
+  (defun lma/ace-window (arg)
+    (interactive "p")
+    (cond
+     ;; Move buffer to target window, select target window, delete old window
+     ((eql arg 64) (aw-select " Move buffer to window killing old window"
+                              (lambda (window)
+                                (let* ((buffer (current-buffer))
+                                       (old-window (selected-window)))
+                                  (set-window-buffer window buffer)
+                                  (select-window window)
+                                  (delete-window old-window)))))
+     (t (ace-window arg))))
+  :bind (("M-o" . lma/ace-window)))
 
 (use-package which-key
   :custom
@@ -408,32 +321,6 @@ Prepends by default, append by setting APPEND to non-nil."
         completion-category-defaults nil
         completion-category-overrides '((file (styles partial-completion)))))
 
-(use-package emacs
-  :init
-  ;; Add prompt indicator to `completing-read-multiple'.
-  ;; We display [CRM<separator>], e.g., [CRM,] if the separator is a comma.
-  (defun crm-indicator (args)
-    (cons (format "[CRM%s] %s"
-                  (replace-regexp-in-string
-                   "\\`\\[.*?]\\*\\|\\[.*?]\\*\\'" ""
-                   crm-separator)
-                  (car args))
-          (cdr args)))
-  (advice-add #'completing-read-multiple :filter-args #'crm-indicator)
-
-  ;; Do not allow the cursor in the minibuffer prompt
-  (setq minibuffer-prompt-properties
-        '(read-only t cursor-intangible t face minibuffer-prompt))
-  (add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
-
-  ;; Hide commands in M-x which do not work in the current mode.
-  ;; Vertico commands are hidden in normal buffers.
-  (setq read-extended-command-predicate
-        #'command-completion-default-include-p)
-
-  ;; Enable recursive minibuffers
-  (setq enable-recursive-minibuffers t))
-
 (use-package savehist
   :init
   (savehist-mode))
@@ -466,7 +353,9 @@ Prepends by default, append by setting APPEND to non-nil."
 (use-package esup
   :defer t)
 
-(use-package gcmh)
+(use-package gcmh
+  :config
+  (add-hook 'after-init-hook 'gcmh-mode))
 
 (use-package vterm
   :defer t
@@ -488,9 +377,6 @@ Prepends by default, append by setting APPEND to non-nil."
   (save-place-mode))
 
 (use-package cmake-mode
-  :defer t)
-
-(use-package dirvish
   :defer t)
 
 (load "~/.emacs.d/site-config" 'noerror 'nomessage)

@@ -1,61 +1,27 @@
 ;;; early-init.el -*- lexical-binding: t; -*-
 
-;; Start stuff copied from Doom Emacs
+(defmacro lma/override-during-init (variable-name override-value &optional depth)
+  (let ((g (gensym)))
+    `(let ((,g ,variable-name))
+       (setq ,variable-name ,override-value)
+       (add-hook 'after-init-hook (lambda ()
+                                    (setq ,variable-name ,g)) ,depth))))
 
-;; Resizing the Emacs frame can be a terribly expensive part of changing the
-;; font. By inhibiting this, we halve startup times, particularly when we use
-;; fonts that are larger than the system default (which would resize the frame).
-(setq frame-inhibit-implied-resize t)
+;;; We enable gcmh-mode in init.el
+(lma/override-during-init gc-cons-threshold most-positive-fixnum -100)
 
-;; Font compacting can be terribly expensive, especially for rendering icon
-;; fonts on Windows. Whether it has a notable affect on Linux and Mac hasn't
-;; been determined, but we inhibit it there anyway.
-(setq inhibit-compacting-font-caches t)
+;;; From Doom Emacs
+;;; Resizing the Emacs frame can be a terribly expensive part of changing the
+;;; font. By inhibiting this, we halve startup times, particularly when we use
+;;; fonts that are larger than the system default (which would resize the frame).
+(lma/override-during-init frame-inhibit-implied-resize t 100)
 
-;; More performant rapid scrolling over unfontified regions. May cause brief
-;; spells of inaccurate syntax highlighting right after scrolling, which should
-;; quickly self-correct.
-(setq fast-but-imprecise-scrolling t)
-
-;; Get rid of "For information about GNU Emacs..." message at startup, unless
-;; we're in a daemon session where it'll say "Starting Emacs daemon." instead,
-;; which isn't so bad.
+;;; From Doom Emacs
+;;; Get rid of "For information about GNU Emacs..." message at startup, unless
+;;; we're in a daemon session where it'll say "Starting Emacs daemon." instead,
+;;; which isn't so bad.
 (unless (daemonp)
   (advice-add #'display-startup-echo-area-message :override #'ignore))
-
-;; Emacs "updates" its ui more often than it needs to, so we slow it down
-;; slightly from 0.5s:
-(setq idle-update-delay 1.0)
-
-;; Make `apropos' et co search more extensively. They're more useful this way.
-(setq apropos-do-all t)
-
-;; A second, case-insensitive pass over `auto-mode-alist' is time wasted, and
-;; indicates misconfiguration (or that the user needs to stop relying on case
-;; insensitivity).
-(setq auto-mode-case-fold nil)
-
-;; End stuff copied from Doom Emacs
-
-(setq package-enable-at-startup nil)
-
-(defun lma/print-startup-time ()
-  (message "Emacs loaded in %f seconds with %d gcs."
-           (float-time (time-subtract after-init-time before-init-time))
-           gcs-done))
-
-(add-hook 'after-init-hook 'lma/print-startup-time)
-
-(defun lma/configure-gc ()
-  (let ((original-gc-cons-threshold gc-cons-threshold)
-        (hook-fn (lambda ()
-                   (cond
-                    ((require 'gcmh nil 'noerror) (gcmh-mode 1))
-                    (t (setq gc-cons-threshold original-gc-cons-threshold))))))
-    (add-hook 'after-init-hook hook-fn)
-    (setq gc-cons-threshold most-positive-fixnum)))
-
-(lma/configure-gc)
 
 (modify-all-frames-parameters '((width . 0.7)
                                 (height . 0.7)
@@ -63,6 +29,8 @@
                                 (top . 0.5)
                                 (vertical-scroll-bars . nil)
                                 (horizontal-scroll-bars . nil)
+                                (tool-bar-lines . 0)
+                                (menu-bar-lines . 0)
                                 (ns-transparent-titlebar . t)))
 
 
