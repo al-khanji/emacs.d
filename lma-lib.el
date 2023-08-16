@@ -2,6 +2,7 @@
 
 (require 'cl-lib)
 (require 'eshell)
+(require 'package)
 
 (defvar *think-different* (eq system-type 'darwin))
 
@@ -30,12 +31,11 @@
 
   (package-initialize)
 
-  (unless (or (fboundp 'use-package) (featurep 'use-package))
-    (unless (package-installed-p 'use-package)
-      (package-refresh-contents)
-      (package-install 'use-package))
-    
-    (require 'use-package))
+  (unless (package-installed-p 'use-package)
+    (package-refresh-contents)
+    (package-install 'use-package))
+
+  (require 'use-package)
 
   (setq use-package-always-ensure t
         use-package-compute-statistics t))
@@ -132,5 +132,8 @@ Prepends by default, append by setting APPEND to non-nil."
   (message "Emacs loaded in %f seconds with %d gcs."
            (float-time (time-subtract after-init-time before-init-time))
            gcs-done))
+
+(defun lma/set-WINDOWID (&optional frame)
+  (setenv "WINDOWID" (frame-parameter frame 'window-id)))
 
 (provide 'lma-lib)

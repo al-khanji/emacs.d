@@ -1,5 +1,7 @@
 ;;; early-init.el -*- lexical-binding: t; -*-
 
+(setq package-enable-at-startup nil)
+
 (defmacro lma/override-during-init (variable-name override-value &optional depth)
   (let ((g (gensym)))
     `(let ((,g ,variable-name))

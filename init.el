@@ -1,23 +1,21 @@
 ;;;; init.el -*- lexical-binding: t; -*-
 
 (require 'dired-x)
+(load (expand-file-name "lma-lib" user-emacs-directory) nil 'nomessage)
 
 (defvar *default-font-name* "Iosevka Term")
 (defvar *default-font-size* 160)
 (defvar *auto-save-dir-name* "auto-save/")
 (defvar *custom-file-name* "custom.el")
 
+(lma/init-use-package)
+
+(use-package no-littering
+  :config
+  (setq auto-save-file-name-transforms `((".*" ,(no-littering-expand-var-file-name *auto-save-dir-name*) t))
+        custom-file (no-littering-expand-etc-file-name *custom-file-name*))
+
 (let ((inhibit-redisplay t))
-  (load (expand-file-name "lma-lib" user-emacs-directory) nil 'nomessage)
-
-  (lma/init-use-package)
-
-  (use-package no-littering
-    :config
-    (setq auto-save-file-name-transforms `((".*" ,(no-littering-expand-var-file-name *auto-save-dir-name*) t))
-          custom-file (no-littering-expand-etc-file-name *custom-file-name*))
-    (load custom-file 'noerror 'nomessage))
-
   (tool-bar-mode -1)
   (scroll-bar-mode -1)
 
@@ -33,6 +31,8 @@
   (use-package ef-themes
     :config
     (load-theme 'ef-spring t)))
+
+    (load custom-file 'noerror 'nomessage))
 
 (use-package emacs
   :init
@@ -101,7 +101,13 @@
   (setq apropos-do-all t)
 
   ;; Print some startup statistics
-  (add-hook 'after-init-hook 'lma/print-startup-time 100))
+  (add-hook 'after-init-hook 'lma/print-startup-time 100)
+
+  ;; Set WINDOWID for e.g. zenity
+  (add-hook 'after-init-hook 'lma/set-WINDOWID)
+  (add-function :after after-focus-change-function 'lma/set-WINDOWID)
+
+  )
 
 (use-package bind-key
   :config
@@ -114,7 +120,9 @@
     (bind-key "s-w" 'kill-this-buffer))
   (bind-keys
    ("s-[" . previous-window-any-frame)
-   ("s-]" . next-window-any-frame)))
+   ("s-]" . next-window-any-frame)
+   ("M-[" . previous-window-any-frame)
+   ("M-]" . next-window-any-frame)))
 
 ;;; Always reload unchanged buffers if the underlying file changes on disk
 (use-package autorevert
@@ -169,6 +177,24 @@
                       ;; load more export backends
                       (require 'ox-beamer)
                       (require 'ox-md))))
+
+(use-package org-roam
+  :init
+  (setq org-roam-v2-ack t)
+  :custom
+  (org-roam-directory "~/RoamNotes")
+  (org-roam-completion-everywhere t)
+  :bind (("C-c n l" . org-roam-buffer-toggle)
+         ("C-c n f" . org-roam-node-find)
+         ("C-c n i" . org-roam-node-insert)
+         :map org-mode-map
+         ("C-M-i" . completion-at-point))
+  :config
+  (unless (file-directory-p org-roam-directory)
+    (make-directory org-roam-directory))
+  (org-roam-setup))
+
+(use-package org-noter)
 
 (use-package marginalia
   :bind ("M-A" . marginalia-cycle)
@@ -271,13 +297,11 @@
 
 (use-package corfu
   :init
-  (setq tab-always-indent 'complete)
-  (global-corfu-mode)
+  ;; (setq tab-always-indent 'complete)
+  ;; (global-corfu-mode)
   (corfu-popupinfo-mode)
-  :bind (:map corfu-map
-              ("RET" . nil))
   :custom
-  (corfu-popupinfo-delay 0.25))
+  (corfu-popupinfo-delay 0))
 
 (use-package cape
   :init
