@@ -137,7 +137,8 @@
   (when (display-graphic-p)
     (unbind-key "C-z"))
   (when *think-different*
-    (bind-key "s-w" 'kill-this-buffer))
+    (bind-key "s-w" 'kill-this-buffer)
+    (unbind-key "s-p"))
   (bind-keys
    ("s-[" . previous-window-any-frame)
    ("s-]" . next-window-any-frame)
