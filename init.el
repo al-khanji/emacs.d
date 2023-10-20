@@ -1,10 +1,9 @@
 ;;;; init.el -*- lexical-binding: t; -*-
 
+(add-to-list 'load-path user-emacs-directory)
 (require 'dired-x)
-(load (expand-file-name "lma-lib" user-emacs-directory) nil 'nomessage)
+(require 'lma-lib)
 
-(defvar *default-font-name* "Iosevka Term")
-(defvar *default-font-size* 160)
 (defvar *auto-save-dir-name* "auto-save/")
 (defvar *custom-file-name* "custom.el")
 
@@ -14,6 +13,23 @@
   :config
   (setq auto-save-file-name-transforms `((".*" ,(no-littering-expand-var-file-name *auto-save-dir-name*) t))
         custom-file (no-littering-expand-etc-file-name *custom-file-name*))
+  (load custom-file 'noerror 'nomessage))
+
+(use-package fontaine
+  :custom
+  (fontaine-presets '((small
+                       :default-height 120)
+                      (smallish
+                       :default-height 130)
+                      (regular
+                       :default-height 140)
+                      (large
+                       :default-height 170)
+                      (large-but-light
+                       :default-height 170
+                       :default-weight semilight)
+                      (t
+                       :default-family "Iosevka Fixed"))))
 
 (let ((inhibit-redisplay t))
   (tool-bar-mode -1)
@@ -22,17 +38,18 @@
   (when (and (display-graphic-p) (not *think-different*))
     (menu-bar-mode -1))
 
-  (lma/set-font *default-font-name* *default-font-size*)
+  (fontaine-set-preset 'regular)
 
   (when *think-different*
     ;; Make emojis work
     (set-fontset-font "fontset-default" 'unicode "Apple Color Emoji" nil 'prepend))
 
+  (context-menu-mode)
+  (setq frame-title-format "%F %* %f")
+
   (use-package ef-themes
     :config
     (load-theme 'ef-spring t)))
-
-    (load custom-file 'noerror 'nomessage))
 
 (use-package emacs
   :init
@@ -79,6 +96,7 @@
         native-comp-async-report-warnings-errors 'silent  ; silence the deluge
         dired-dwim-target t             ; come on dired
         make-backup-files nil           ; no backup files
+        split-height-threshold 120      ; I really prefer windows side by side
         )
 
   ;; Work around mutter being stupid when it comes to resizes
@@ -107,7 +125,9 @@
   (add-hook 'after-init-hook 'lma/set-WINDOWID)
   (add-function :after after-focus-change-function 'lma/set-WINDOWID)
 
-  )
+  ;; Please emacs do the work for me
+  (electric-pair-mode)
+  (electric-indent-mode))
 
 (use-package bind-key
   :config
@@ -134,6 +154,8 @@
 
 ;;; Line numbers in some modes by default
 (use-package display-line-numbers
+  :custom
+  (display-line-numbers-width-start t)
   :hook ((text-mode prog-mode) . display-line-numbers-mode))
 
 ;;; Make links clickable
@@ -149,6 +171,7 @@
 (use-package gnu-elpa-keyring-update)
 
 (use-package ns-auto-titlebar
+  :if *think-different*
   :config
   (ns-auto-titlebar-mode)
   (setq ns-use-proxy-icon nil))
@@ -194,7 +217,8 @@
     (make-directory org-roam-directory))
   (org-roam-setup))
 
-(use-package org-noter)
+(use-package org-noter
+  :defer t)
 
 (use-package marginalia
   :bind ("M-A" . marginalia-cycle)
@@ -225,23 +249,20 @@
   (which-key-idle-secondary-delay 0)
   :hook (after-init . which-key-mode))
 
-(use-package slime
-  :defer t
-  :custom
-  (slime-net-coding-system 'utf-8-unix)
-  :config
-  (add-to-list 'slime-lisp-implementations
-               `(sbcl ("sbcl") :coding-system ,slime-net-coding-system)))
+;; (use-package slime
+;;   :defer t
+;;   :custom
+;;   (slime-net-coding-system 'utf-8-unix)
+;;   (slime-compilation-finished-hook 'slime-maybe-list-compiler-notes)
+;;   :config
+;;   (setq slime-contribs '(slimy-fuzzy slime-fancy slime-asdf slime-quicklisp))
+;;   (add-to-list 'slime-lisp-implementations
+;;                `(sbcl ("sbcl" "--dynamic-space-size=2048") :coding-system ,slime-net-coding-system)))
 
-(use-package slime-company
-  :after (cape slime)
-  :config
-  (defvar *slime-capf-function* (cape-company-to-capf #'company-slime))
-  :hook ((slime-mode slime-repl-mode) . (lambda ()
-                                          (add-hook 'completion-at-point-functions
-                                                    *slime-capf-function*
-                                                    nil
-                                                    'local))))
+(use-package sly)
+
+(use-package sly-macrostep
+  :after sly)
 
 (use-package minions
   :config (minions-mode 1))
@@ -297,17 +318,19 @@
 
 (use-package corfu
   :init
-  ;; (setq tab-always-indent 'complete)
-  ;; (global-corfu-mode)
+  (setq tab-always-indent 'complete
+        tab-first-completion 'word-or-paren-or-punct
+        corfu-popupinfo-hide nil)
   (corfu-popupinfo-mode)
+  (global-corfu-mode)
   :custom
   (corfu-popupinfo-delay 0))
 
-(use-package cape
-  :init
-  (add-to-list 'completion-at-point-functions #'cape-dabbrev)
-  (add-to-list 'completion-at-point-functions #'cape-file)
-  (add-to-list 'completion-at-point-functions #'cape-elisp-block))
+;; (use-package cape
+;;   :init
+;;   (add-to-list 'completion-at-point-functions #'cape-dabbrev)
+;;   (add-to-list 'completion-at-point-functions #'cape-file)
+;;   (add-to-list 'completion-at-point-functions #'cape-elisp-block))
 
 (use-package vertico
   :init
@@ -353,6 +376,8 @@
   :defer t
   :custom
   (eglot-extend-to-xref t)
+  (eglot-events-buffer-size 0)
+  (eglot-autoshutdown t)
   :hook ((c-mode c++-mode erlang-mode python-mode) . eglot-ensure))
 
 (use-package google-c-style
@@ -384,7 +409,6 @@
 (use-package vterm
   :defer t
   :custom
-  (vterm-kill-buffer-on-exit nil)
   (vterm-always-compile-module t)
   (vterm-module-cmake-args "-DUSE_SYSTEM_LIBVTERM=no")
   (vterm-buffer-name-string "vterm %s")
@@ -403,9 +427,17 @@
 (use-package cmake-mode
   :defer t)
 
-(load "~/.emacs.d/site-config" 'noerror 'nomessage)
+(use-package wgrep)
+
+(use-package wgrep-deadgrep)
+
+(use-package markdown-mode)
+
+(use-package bazel)
 
 (server-start)
+
+(load "site-config" 'noerror)
 
 (provide 'init)
 

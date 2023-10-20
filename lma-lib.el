@@ -9,7 +9,7 @@
 (defvar *github-urls* '((:https "https://github.com/")
                         (:ssl "git@github.com:")))
 
-(defvar *local-github-dir* (expand-file-name "~/github"))
+(defvar *local-github-dir* (expand-file-name "~/github/"))
 
 (defvar *git-config-alist* '(("core.autocrlf" . "input")
                              ("rebase.stat" . "true")
@@ -40,10 +40,20 @@
   (setq use-package-always-ensure t
         use-package-compute-statistics t))
 
-(defun lma/set-font (family height &optional slant)
-  (setq slant (or slant 'normal))
-  (when-let ((font (find-font (font-spec :family family :slant slant))))
-    (set-face-attribute 'default nil :font font :height height)))
+(defvar *iosevka-version* "27.2.1")
+(defvar *iosevka-file-name-template* "super-ttc-iosevka-%s.zip")
+(defvar *iosevka-url-base-template*  "https://github.com/be5invis/Iosevka/releases/download/v%s/")
+
+(cl-defun lma/install-iosevka-ttc (&optional (version *iosevka-version*))
+  "Download and install Iosevka font"
+  (interactive)
+  (let* ((base-path (format *iosevka-url-base-template* version))
+         (file-name (format *iosevka-file-name-template* version))
+         (src (format "%s%s" base-path file-name))
+         (dst (expand-file-name file-name temporary-file-directory)))
+    (url-copy-file src dst 'ok-if-already-exists)
+    (shell-command (format "unzip -u -d %s %s" (expand-file-name "~/.local/share/fonts/") dst))
+    (async-shell-command "fc-cache -fv")))
 
 (defun lma/project-save-buffers (&optional arg)
   "Save modified file-visiting buffers of current project.
@@ -93,7 +103,7 @@ Prepends by default, append by setting APPEND to non-nil."
                (`(,scheme ,url) (assoc scheme *github-urls*))
                (`(,owner ,project) (split-string repo "/"))
                (src (concat url repo ".git"))
-               (dst (local-github-subdir owner)))
+               (dst (lma/local-github-subdir owner)))
     (message "github-clone %s -> %s" src dst)
     (vc-git-clone src dst nil)))
 
