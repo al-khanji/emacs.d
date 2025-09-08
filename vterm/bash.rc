@@ -1,8 +1,3 @@
-$!/bin/bash -e
-
-if ! grep -q vterm_printf ~/.bashrc
-then
-    cat >> ~/.bashrc <<EOF
 vterm_printf() {
     if [ -n "$TMUX" ] && ([ "${TERM%%-*}" = "tmux" ] || [ "${TERM%%-*}" = "screen" ]); then
         # Tell tmux to pass the escape sequences through
@@ -18,6 +13,5 @@ vterm_printf() {
 vterm_prompt_end(){
     vterm_printf "51;A$(whoami)@$(hostname):$(pwd)"
 }
+
 PS1=$PS1'\[$(vterm_prompt_end)\]'
-EOF
-fi

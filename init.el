@@ -47,6 +47,10 @@
   (context-menu-mode)
   (setq frame-title-format "%F %* %f")
 
+  (use-package doom-modeline
+    :init
+    (doom-modeline-mode))
+
   (use-package ef-themes
     :config
     (load-theme 'ef-spring t)))
@@ -93,10 +97,10 @@
         visible-bell t                  ; yes visible bell
         use-dialog-box nil              ; no dialog boxes
         create-lockfiles nil            ; no lock files
-        native-comp-async-report-warnings-errors 'silent  ; silence the deluge
-        dired-dwim-target t             ; come on dired
-        make-backup-files nil           ; no backup files
-        split-height-threshold 120      ; I really prefer windows side by side
+        native-comp-async-report-warnings-errors 'silent ; silence the deluge
+        dired-dwim-target t        ; come on dired
+        make-backup-files nil      ; no backup files
+        split-height-threshold 120 ; I really prefer windows side by side
         )
 
   ;; Work around mutter being stupid when it comes to resizes
@@ -269,7 +273,15 @@
   :config (minions-mode 1))
 
 (use-package magit
-  :bind ("C-x g" . magit-status))
+  :bind (("C-x g" . magit-status)
+         ("C-x p g" . project-magit-status))
+  :config
+  (defun project-magit-status (&optional prefix)
+    "Open magit status for current project. Prompt for project if none current or prefix argument given."
+    (interactive "P")
+    (magit-status (if (and (project-current) (not prefix))
+                      (project-root (project-current))
+                    (project-prompt-project-dir)))))
 
 (use-package yaml-mode)
 
@@ -373,6 +385,13 @@
   :init
   (savehist-mode))
 
+(use-package eglot-booster
+  :init
+  (unless (package-installed-p 'eglot-booster)
+    (package-vc-install "https://github.com/jdtsmith/eglot-booster"))
+  :after eglot
+  :config (eglot-booster-mode))
+
 (use-package eglot
   :defer t
   :custom
@@ -407,6 +426,10 @@
   :config
   (add-hook 'after-init-hook 'gcmh-mode))
 
+;;; Add to bashrc:
+;;; if [[ "$INSIDE_EMACS" = 'vterm' ]]; then
+;;;   . ~/.emacs.d/vterm/bash.rc
+;;; fi
 (use-package vterm
   :defer t
   :custom
@@ -436,9 +459,20 @@
 
 (use-package bazel)
 
+(use-package csv-mode
+  ;; Match .csv or .tsv, case-insensitive
+  :mode ("(?i)\\.\\(csv\\|tsv\\)\\'" . csv-mode)
+  :hook ((csv-mode . lma/csv-setup))
+  :config
+  (defun lma/csv-setup ()
+    "Custom CSV/TSV mode setup without assuming headers."
+    (setq-local csv-align-padding 1)  ;; one space between columns
+    (csv-align-mode 1)))              ;; auto-align columns
+
 (server-start)
 
 (load "site-config" 'noerror)
 
 (provide 'init)
 
+(put 'upcase-region 'disabled nil)
