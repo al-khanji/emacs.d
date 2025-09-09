@@ -392,10 +392,10 @@
   :init
   (savehist-mode))
 
-(use-package eglot-booster
-  :init
-  (unless (package-installed-p 'eglot-booster)
+(unless (package-installed-p 'eglot-booster)
     (package-vc-install "https://github.com/jdtsmith/eglot-booster"))
+
+(use-package eglot-booster
   :after eglot
   :config (eglot-booster-mode))
 
