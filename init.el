@@ -478,7 +478,7 @@
 
 (server-start)
 
-(load "site-config" 'noerror)
+(load (expand-file-name "site-config.el" "~/.emacs.d") 'noerror)
 
 (provide 'init)
 
