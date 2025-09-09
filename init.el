@@ -31,6 +31,13 @@
                       (t
                        :default-family "Iosevka Fixed"))))
 
+(cl-loop for (name . action)
+         in '(("iosevka" . lma/install-iosevka-ttc)
+	      ("Symbols Nerd Font Mono" . (lambda ()
+					    (nerd-icons-install-fonts t))))
+         unless (find-font (font-spec :name name))
+         do (funcall action))
+
 (let ((inhibit-redisplay t))
   (tool-bar-mode -1)
   (scroll-bar-mode -1)
