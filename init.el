@@ -476,6 +476,9 @@
     (setq-local csv-align-padding 1)  ;; one space between columns
     (csv-align-mode 1)))              ;; auto-align columns
 
+(use-package ultra-scroll
+  :init (ultra-scroll-mode))
+
 (server-start)
 
 (load (expand-file-name "site-config.el" "~/.emacs.d") 'noerror)
